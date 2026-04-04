@@ -5,10 +5,10 @@ from pydantic import BaseModel
 from psycopg2 import IntegrityError
 
 from app.config.database import get_db_connection
-from app.middleware.auth import get_current_user
+from app.routers.auth import get_current_user
 
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class VendorCreateRequest(BaseModel):
@@ -39,14 +39,6 @@ def rows_to_dicts(cursor, rows):
     return [dict(zip(columns, row)) for row in rows]
 
 
-def require_roles(current_user: dict, allowed_roles: set[str]):
-    if current_user["role"] not in allowed_roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to perform this action",
-        )
-
-
 def fetch_vendor(conn, vendor_id: int):
     with conn.cursor() as cursor:
         cursor.execute(
@@ -58,12 +50,7 @@ def fetch_vendor(conn, vendor_id: int):
                 v.phone,
                 v.email,
                 v.payment_terms,
-                v.created_at,
-                (
-                    SELECT COUNT(*)
-                    FROM products p
-                    WHERE p.vendor_id = v.id
-                ) AS product_count
+                v.created_at
             FROM vendors v
             WHERE v.id = %s
             """,
@@ -98,56 +85,38 @@ def fetch_vendor(conn, vendor_id: int):
 
 
 @router.get("")
-def list_vendors(
-    current_user=Depends(get_current_user),
-    conn=Depends(get_db_connection),
-):
+def list_vendors(conn=Depends(get_db_connection)):
     with conn.cursor() as cursor:
         cursor.execute(
             """
             SELECT
-                v.id,
-                v.name,
-                v.contact_person,
-                v.phone,
-                v.email,
-                v.payment_terms,
-                v.created_at,
-                (
-                    SELECT COUNT(*)
-                    FROM products p
-                    WHERE p.vendor_id = v.id
-                ) AS product_count
-            FROM vendors v
-            ORDER BY v.name ASC
+                id,
+                name,
+                contact_person,
+                phone,
+                email,
+                payment_terms,
+                created_at
+            FROM vendors
+            ORDER BY name ASC
             """
         )
         return rows_to_dicts(cursor, cursor.fetchall())
 
 
 @router.get("/{vendor_id}")
-def get_vendor(
-    vendor_id: int,
-    current_user=Depends(get_current_user),
-    conn=Depends(get_db_connection),
-):
+def get_vendor(vendor_id: int, conn=Depends(get_db_connection)):
     vendor = fetch_vendor(conn, vendor_id)
     if not vendor:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Not found",
+            detail="Vendor not found",
         )
     return vendor
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_vendor(
-    payload: VendorCreateRequest,
-    current_user=Depends(get_current_user),
-    conn=Depends(get_db_connection),
-):
-    require_roles(current_user, {"admin", "manager"})
-
+def create_vendor(payload: VendorCreateRequest, conn=Depends(get_db_connection)):
     try:
         with conn.cursor() as cursor:
             cursor.execute(
@@ -172,12 +141,12 @@ def create_vendor(
             )
             vendor_id = cursor.fetchone()[0]
         conn.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unable to create vendor",
-        )
+        ) from exc
     except Exception:
         conn.rollback()
         raise
@@ -189,34 +158,20 @@ def create_vendor(
 def update_vendor(
     vendor_id: int,
     payload: VendorUpdateRequest,
-    current_user=Depends(get_current_user),
     conn=Depends(get_db_connection),
 ):
-    require_roles(current_user, {"admin", "manager"})
-
-    update_data = payload.model_dump(exclude_unset=True)
-    if not update_data:
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No fields provided for update",
         )
 
-    allowed_fields = {"name", "contact_person", "phone", "email", "payment_terms"}
     set_clauses = []
     params = []
-
-    for field_name, value in update_data.items():
-        if field_name not in allowed_fields:
-            continue
+    for field_name, value in data.items():
         set_clauses.append(f"{field_name} = %s")
         params.append(value)
-
-    if not set_clauses:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid fields provided for update",
-        )
-
     params.append(vendor_id)
 
     try:
@@ -232,13 +187,13 @@ def update_vendor(
             )
             updated = cursor.fetchone()
         if not updated:
-            conn.rollback()
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Not found",
+                detail="Vendor not found",
             )
         conn.commit()
     except HTTPException:
+        conn.rollback()
         raise
     except Exception:
         conn.rollback()
@@ -248,45 +203,47 @@ def update_vendor(
 
 
 @router.delete("/{vendor_id}")
-def delete_vendor(
-    vendor_id: int,
-    current_user=Depends(get_current_user),
-    conn=Depends(get_db_connection),
-):
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT COUNT(*)
-            FROM products
-            WHERE vendor_id = %s
-            """,
-            (vendor_id,),
-        )
-        product_count = cursor.fetchone()[0]
+def delete_vendor(vendor_id: int, conn=Depends(get_db_connection)):
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT COUNT(*)
+                FROM products
+                WHERE vendor_id = %s
+                """,
+                (vendor_id,),
+            )
+            product_count = cursor.fetchone()[0]
 
-    if product_count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Vendor cannot be deleted because products reference this vendor",
-        )
+            if product_count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Vendor cannot be deleted because products are associated with it",
+                )
 
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            DELETE FROM vendors
-            WHERE id = %s
-            RETURNING id
-            """,
-            (vendor_id,),
-        )
-        deleted = cursor.fetchone()
+            cursor.execute(
+                """
+                DELETE FROM vendors
+                WHERE id = %s
+                RETURNING id
+                """,
+                (vendor_id,),
+            )
+            deleted = cursor.fetchone()
 
-    if not deleted:
+        if not deleted:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Vendor not found",
+            )
+
+        conn.commit()
+    except HTTPException:
         conn.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Not found",
-        )
+        raise
+    except Exception:
+        conn.rollback()
+        raise
 
-    conn.commit()
     return {"message": "Vendor deleted successfully"}

@@ -1,23 +1,20 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Navigate, useLocation } from 'react-router-dom';
 
-const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+import { useAuth } from '../context/AuthContext';
+import LoadingSpinner from './LoadingSpinner';
+
+
+export default function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin border-4 border-blue-500 border-t-transparent rounded-full w-10 h-10"></div>
-      </div>
-    );
+    return <LoadingSpinner label="Checking session..." />;
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return children;
-};
-
-export default ProtectedRoute;
+}

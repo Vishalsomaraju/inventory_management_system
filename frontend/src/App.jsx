@@ -1,45 +1,44 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Inventory from './pages/Inventory';
-import Vendors from './pages/Vendors';
-import PurchaseOrders from './pages/PurchaseOrders';
-import Analytics from './pages/Analytics';
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
-function App() {
+import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
+import AlertsPage from './pages/AlertsPage';
+import DashboardPage from './pages/DashboardPage';
+import InventoryPage from './pages/InventoryPage';
+import LoginPage from './pages/LoginPage';
+import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
+import VendorsPage from './pages/VendorsPage';
+
+
+function ProtectedLayout() {
   return (
-    <Router>
-      <AuthProvider>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route 
-            path="/dashboard" 
-            element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} 
-          />
-          <Route 
-            path="/inventory" 
-            element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} 
-          />
-          <Route 
-            path="/vendors" 
-            element={<ProtectedRoute><Layout><Vendors /></Layout></ProtectedRoute>} 
-          />
-          <Route 
-            path="/purchase-orders" 
-            element={<ProtectedRoute><Layout><PurchaseOrders /></Layout></ProtectedRoute>} 
-          />
-          <Route 
-            path="/analytics" 
-            element={<ProtectedRoute><Layout><Analytics /></Layout></ProtectedRoute>} 
-          />
-        </Routes>
-      </AuthProvider>
-    </Router>
-  )
+    <ProtectedRoute>
+      <Layout>
+        <Outlet />
+      </Layout>
+    </ProtectedRoute>
+  );
 }
 
-export default App
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route element={<ProtectedLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/vendors" element={<VendorsPage />} />
+            <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
+            <Route path="/alerts" element={<AlertsPage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
