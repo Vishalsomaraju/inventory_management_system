@@ -359,3 +359,56 @@ def delete_purchase_order(po_id: int, conn=Depends(get_db_connection)):
         raise
 
     return {"message": "Purchase order deleted successfully"}
+
+def create_draft_purchase_order(conn, vendor_id, items):
+    """
+    Creates a draft purchase order with items.
+
+    Args:
+        conn: DB connection
+        vendor_id: ID of vendor
+        items: list of { product_id, quantity }
+
+    Returns:
+        dict with purchase order details
+    """
+    try:
+        with conn.cursor() as cursor:
+            # 1. Create purchase order
+            cursor.execute(
+                """
+                INSERT INTO purchase_orders (vendor_id, status, created_at)
+                VALUES (%s, 'draft', NOW())
+                RETURNING id
+                """,
+                (vendor_id,)
+            )
+            po_id = cursor.fetchone()[0]
+
+            # 2. Insert items
+            for item in items:
+                cursor.execute(
+                    """
+                    INSERT INTO purchase_order_items
+                    (purchase_order_id, product_id, quantity)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (
+                        po_id,
+                        item["product_id"],
+                        item["quantity"]
+                    )
+                )
+
+        conn.commit()
+
+        return {
+            "success": True,
+            "purchase_order_id": po_id,
+            "status": "draft",
+            "items_count": len(items)
+        }
+
+    except Exception as e:
+        conn.rollback()
+        raise Exception(f"Failed to create draft purchase order: {e}")

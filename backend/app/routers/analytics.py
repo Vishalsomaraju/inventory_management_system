@@ -120,3 +120,75 @@ def get_top_products(conn=Depends(get_db_connection)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch top products: {exc}",
         ) from exc
+
+def build_ai_context(conn):
+    """
+    Build context data for AI (chatbot / insights)
+    """
+    try:
+        with conn.cursor() as cursor:
+            # Basic stats
+            cursor.execute("SELECT COUNT(*) FROM products")
+            total_products = cursor.fetchone()[0]
+
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM products
+                WHERE current_stock <= reorder_level
+            """)
+            low_stock = cursor.fetchone()[0]
+
+            cursor.execute("""
+                SELECT p.name, SUM(st.quantity) as total_out
+                FROM stock_transactions st
+                JOIN products p ON p.id = st.product_id
+                WHERE st.type = 'OUT'
+                GROUP BY p.name
+                ORDER BY total_out DESC
+                LIMIT 5
+            """)
+            top_products = rows_to_dicts(cursor, cursor.fetchall())
+
+        return {
+            "total_products": total_products,
+            "low_stock_products": low_stock,
+            "top_products": top_products
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+def create_draft_purchase_order(conn, vendor_id, items):
+    """
+    Creates a draft purchase order (not yet finalized)
+    """
+    try:
+        with conn.cursor() as cursor:
+            # Create PO
+            cursor.execute(
+                """
+                INSERT INTO purchase_orders (vendor_id, status)
+                VALUES (%s, 'draft')
+                RETURNING id
+                """,
+                (vendor_id,)
+            )
+            po_id = cursor.fetchone()[0]
+
+            # Insert items
+            for item in items:
+                cursor.execute(
+                    """
+                    INSERT INTO purchase_order_items (purchase_order_id, product_id, quantity)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (po_id, item["product_id"], item["quantity"])
+                )
+
+        conn.commit()
+
+        return {"purchase_order_id": po_id, "status": "draft"}
+
+    except Exception as e:
+        conn.rollback()
+        raise e

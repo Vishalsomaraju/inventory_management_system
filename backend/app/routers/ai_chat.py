@@ -11,10 +11,10 @@ from pydantic import BaseModel, Field
 from app.config.database import get_db_connection
 from app.middleware.auth import get_current_user
 from app.routers.analytics import build_ai_context
+from app.routers.auth import require_roles
 from app.routers.purchase_orders import (
     POLineItemRequest,
     create_draft_purchase_order,
-    require_roles,
 )
 
 
