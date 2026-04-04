@@ -1,13 +1,26 @@
+from importlib import import_module
+
 from fastapi import FastAPI
-from app.routers import auth, inventory, vendors, purchase_orders, analytics
+
+from app.routers import auth
+
 
 app = FastAPI(title="Smart Inventory & Procurement System", version="1.0.0")
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
-app.include_router(inventory.router, prefix="/api/inventory", tags=["inventory"])
-app.include_router(vendors.router, prefix="/api/vendors", tags=["vendors"])
-app.include_router(purchase_orders.router, prefix="/api/purchase-orders", tags=["purchase_orders"])
-app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
+
+for module_name, prefix, tags in [
+    ("inventory", "/api/inventory", ["inventory"]),
+    ("vendors", "/api/vendors", ["vendors"]),
+    ("purchase_orders", "/api/purchase-orders", ["purchase_orders"]),
+    ("analytics", "/api/analytics", ["analytics"]),
+]:
+    try:
+        module = import_module(f"app.routers.{module_name}")
+    except ModuleNotFoundError:
+        continue
+    app.include_router(module.router, prefix=prefix, tags=tags)
+
 
 @app.get("/")
 def root():
