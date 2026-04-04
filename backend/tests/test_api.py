@@ -31,9 +31,8 @@ class InventoryAPITester:
         self.print_result(1, "Health check", success, f"Code: {res.status_code}, Body: {res.text}")
 
     def step_2_login(self):
-        # OAuth2 password flow expects form data
-        res = self.session.post(f"{self.base_url}/api/auth/login", data={
-            "username": self.email,
+        res = self.session.post(f"{self.base_url}/api/auth/login", json={
+            "email": self.email,
             "password": self.password
         })
         success = res.status_code == 200
