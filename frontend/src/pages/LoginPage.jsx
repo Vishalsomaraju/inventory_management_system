@@ -34,17 +34,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+    <div className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-900 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 p-8 shadow-xl">
         <div className="mb-8 text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-700">Inventory Access</p>
-          <h1 className="mt-3 text-3xl font-bold text-slate-900">Sign in</h1>
+          <h1 className="mt-3 text-3xl font-bold text-slate-900 dark:text-white">Sign in</h1>
           <p className="mt-2 text-sm text-slate-500">Use your inventory system credentials to continue.</p>
         </div>
 
         <form className="space-y-5" onSubmit={handleSubmit}>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="email">
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="email">
               Email
             </label>
             <input
@@ -52,13 +52,13 @@ export default function LoginPage() {
               type="email"
               value={form.email}
               onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition focus:border-sky-500"
               required
             />
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700" htmlFor="password">
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300" htmlFor="password">
               Password
             </label>
             <input
@@ -66,7 +66,7 @@ export default function LoginPage() {
               type="password"
               value={form.password}
               onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm text-slate-900 dark:text-white outline-none transition focus:border-sky-500"
               required
             />
           </div>

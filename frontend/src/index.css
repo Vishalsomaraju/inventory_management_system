@@ -10,8 +10,7 @@ body,
 
 body {
   margin: 0;
-  background-color: #f1f5f9;
-  color: #0f172a;
+  @apply bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100;
   font-family:
     ui-sans-serif,
     system-ui,
@@ -20,3 +19,14 @@ body {
     "Segoe UI",
     sans-serif;
 }
+
+@layer base {
+  input, select, textarea {
+    @apply bg-transparent dark:bg-slate-800/50;
+  }
+  
+  select option {
+    @apply bg-white dark:bg-slate-800 text-slate-900 dark:text-white;
+  }
+}
+

@@ -171,23 +171,23 @@ export default function InventoryPage() {
     <div className="space-y-6">
       <Toast {...toast} onClose={() => setToast((current) => ({ ...current, show: false }))} />
 
-      <div className="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl bg-white dark:bg-slate-800 p-5 shadow-sm lg:flex-row lg:items-end lg:justify-between">
         <div className="grid flex-1 gap-4 md:grid-cols-3">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Search</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Search</label>
             <input
               value={filters.search}
               onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
               placeholder="Search name, SKU, category"
             />
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Category</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Category</label>
             <select
               value={filters.category}
               onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
             >
               <option value="">All categories</option>
               {categories.map((category) => (
@@ -197,7 +197,7 @@ export default function InventoryPage() {
               ))}
             </select>
           </div>
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700">
+          <label className="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-medium text-slate-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={filters.lowStock}
@@ -217,15 +217,15 @@ export default function InventoryPage() {
         </button>
       </div>
 
-      {error ? <div className="rounded-2xl bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error ? <div className="rounded-2xl bg-rose-50 dark:bg-rose-900/20 px-5 py-4 text-sm text-rose-700 dark:text-rose-400">{error}</div> : null}
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl bg-white dark:bg-slate-800 shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
                 {['Name', 'SKU', 'Category', 'Unit', 'Stock', 'Reorder Level', 'Vendor', 'Actions'].map((header) => (
-                  <th key={header} className="px-4 py-3 text-left font-semibold text-slate-600">
+                  <th key={header} className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-400">
                     {header}
                   </th>
                 ))}
@@ -235,24 +235,24 @@ export default function InventoryPage() {
               {products.map((product) => (
                 <tr
                   key={product.id}
-                  className={product.current_stock <= product.reorder_level ? 'bg-rose-50' : 'bg-white'}
+                  className={product.current_stock <= product.reorder_level ? 'bg-rose-50 dark:bg-rose-900/20' : 'bg-white dark:bg-slate-800'}
                 >
-                  <td className="px-4 py-3 font-medium text-slate-900">{product.name}</td>
-                  <td className="px-4 py-3 text-slate-600">{product.sku}</td>
-                  <td className="px-4 py-3 text-slate-600">{product.category || '-'}</td>
-                  <td className="px-4 py-3 text-slate-600">{product.unit || '-'}</td>
-                  <td className="px-4 py-3 text-slate-900">{product.current_stock}</td>
-                  <td className="px-4 py-3 text-slate-600">{product.reorder_level}</td>
-                  <td className="px-4 py-3 text-slate-600">{product.vendor_name || '-'}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{product.name}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{product.sku}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{product.category || '-'}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{product.unit || '-'}</td>
+                  <td className="px-4 py-3 text-slate-900 dark:text-white">{product.current_stock}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{product.reorder_level}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{product.vendor_name || '-'}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => openEditModal(product)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                      <button type="button" onClick={() => openEditModal(product)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Edit
                       </button>
-                      <button type="button" onClick={() => openStockModal(product)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                      <button type="button" onClick={() => openStockModal(product)} className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
                         Adjust Stock
                       </button>
-                      <button type="button" onClick={() => handleDeleteProduct(product)} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                      <button type="button" onClick={() => handleDeleteProduct(product)} className="rounded-lg border border-rose-200 dark:border-rose-900/50 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-400">
                         Delete
                       </button>
                     </div>
@@ -277,7 +277,7 @@ export default function InventoryPage() {
         onClose={() => setProductModalOpen(false)}
         footer={
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setProductModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={() => setProductModalOpen(false)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
               Cancel
             </button>
             <button type="button" onClick={handleSaveProduct} disabled={saving} className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white">
@@ -294,11 +294,11 @@ export default function InventoryPage() {
             ['unit', 'Unit'],
           ].map(([field, label]) => (
             <div key={field}>
-              <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
               <input
                 value={productForm[field]}
                 onChange={(event) => setProductForm((current) => ({ ...current, [field]: event.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
               />
             </div>
           ))}
@@ -308,21 +308,21 @@ export default function InventoryPage() {
             ['reorder_quantity', 'Reorder Quantity'],
           ].map(([field, label]) => (
             <div key={field}>
-              <label className="mb-2 block text-sm font-medium text-slate-700">{label}</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">{label}</label>
               <input
                 type="number"
                 value={productForm[field]}
                 onChange={(event) => setProductForm((current) => ({ ...current, [field]: event.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
               />
             </div>
           ))}
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Vendor</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Vendor</label>
             <select
               value={productForm.vendor_id}
               onChange={(event) => setProductForm((current) => ({ ...current, vendor_id: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
             >
               <option value="">No vendor</option>
               {vendors.map((vendor) => (
@@ -341,7 +341,7 @@ export default function InventoryPage() {
         onClose={() => setStockModalOpen(false)}
         footer={
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setStockModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={() => setStockModalOpen(false)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
               Cancel
             </button>
             <button type="button" onClick={handleAdjustStock} disabled={saving} className="rounded-xl bg-sky-700 px-4 py-2 text-sm font-semibold text-white">
@@ -353,33 +353,33 @@ export default function InventoryPage() {
         <div className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Type</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
               <select
                 value={stockForm.type}
                 onChange={(event) => setStockForm((current) => ({ ...current, type: event.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
               >
                 <option value="IN">IN</option>
                 <option value="OUT">OUT</option>
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Quantity</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Quantity</label>
               <input
                 type="number"
                 min="1"
                 value={stockForm.quantity}
                 onChange={(event) => setStockForm((current) => ({ ...current, quantity: event.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
               />
             </div>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">Notes</label>
+            <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
             <textarea
               value={stockForm.notes}
               onChange={(event) => setStockForm((current) => ({ ...current, notes: event.target.value }))}
-              className="min-h-28 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+              className="min-h-28 w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
             />
           </div>
         </div>

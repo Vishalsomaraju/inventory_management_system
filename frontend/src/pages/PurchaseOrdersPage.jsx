@@ -165,16 +165,16 @@ export default function PurchaseOrdersPage() {
     <div className="space-y-6">
       <Toast {...toast} onClose={() => setToast((current) => ({ ...current, show: false }))} />
 
-      <div className="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl bg-white dark:bg-slate-800 p-5 shadow-sm md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Purchase Orders</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Purchase Orders</h2>
             <p className="text-sm text-slate-500">Create draft orders and progress them through receipt.</p>
           </div>
           <select
             value={statusFilter}
             onChange={(event) => setStatusFilter(event.target.value)}
-            className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
+            className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
           >
             <option value="">All statuses</option>
             <option value="draft">Draft</option>
@@ -188,15 +188,15 @@ export default function PurchaseOrdersPage() {
         </button>
       </div>
 
-      {error ? <div className="rounded-2xl bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error ? <div className="rounded-2xl bg-rose-50 dark:bg-rose-900/20 px-5 py-4 text-sm text-rose-700 dark:text-rose-400">{error}</div> : null}
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+      <div className="overflow-hidden rounded-2xl bg-white dark:bg-slate-800 shadow-sm">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-sm">
-            <thead className="bg-slate-50">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
                 {['PO ID', 'Vendor', 'Status', 'Date', 'Total', 'Actions'].map((header) => (
-                  <th key={header} className="px-4 py-3 text-left font-semibold text-slate-600">
+                  <th key={header} className="px-4 py-3 text-left font-semibold text-slate-600 dark:text-slate-400">
                     {header}
                   </th>
                 ))}
@@ -205,15 +205,15 @@ export default function PurchaseOrdersPage() {
             <tbody className="divide-y divide-slate-100">
               {orders.map((order) => (
                 <tr key={order.id}>
-                  <td className="px-4 py-3 font-medium text-slate-900">#{order.id}</td>
-                  <td className="px-4 py-3 text-slate-600">{order.vendor_name || '-'}</td>
+                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">#{order.id}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{order.vendor_name || '-'}</td>
                   <td className="px-4 py-3">
                     <Badge color={badgeColor(order.status)}>{order.status}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                     {order.created_date ? new Date(order.created_date).toLocaleDateString() : '-'}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">${Number(order.total_amount || 0).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">${Number(order.total_amount || 0).toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       {order.status === 'draft' ? (
@@ -227,7 +227,7 @@ export default function PurchaseOrdersPage() {
                         </button>
                       ) : null}
                       {order.status === 'draft' ? (
-                        <button type="button" onClick={() => handleDelete(order.id)} className="rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700">
+                        <button type="button" onClick={() => handleDelete(order.id)} className="rounded-lg border border-rose-200 dark:border-rose-900/50 px-3 py-1.5 text-xs font-semibold text-rose-700 dark:text-rose-400">
                           Delete
                         </button>
                       ) : null}
@@ -253,14 +253,14 @@ export default function PurchaseOrdersPage() {
         onClose={() => setModalOpen(false)}
         footer={
           <div className="flex justify-between">
-            <div className="text-sm font-medium text-slate-600">Running Total: ${orderTotal.toFixed(2)}</div>
+            <div className="text-sm font-medium text-slate-600 dark:text-slate-400">Running Total: ${orderTotal.toFixed(2)}</div>
             <div className="flex gap-3">
               {step === 2 ? (
-                <button type="button" onClick={() => setStep(1)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
+                <button type="button" onClick={() => setStep(1)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Back
                 </button>
               ) : null}
-              <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700">
+              <button type="button" onClick={() => setModalOpen(false)} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Cancel
               </button>
               {step === 1 ? (
@@ -289,11 +289,11 @@ export default function PurchaseOrdersPage() {
         {step === 1 ? (
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Vendor</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Vendor</label>
               <select
                 value={form.vendor_id}
                 onChange={(event) => setForm((current) => ({ ...current, vendor_id: event.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
               >
                 <option value="">Select vendor</option>
                 {vendors.map((vendor) => (
@@ -304,25 +304,25 @@ export default function PurchaseOrdersPage() {
               </select>
             </div>
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">Expected Delivery</label>
+              <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Expected Delivery</label>
               <input
                 type="date"
                 value={form.expected_delivery}
                 onChange={(event) => setForm((current) => ({ ...current, expected_delivery: event.target.value }))}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
               />
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             {form.line_items.map((item, index) => (
-              <div key={`${index}-${item.product_id}`} className="grid gap-4 rounded-2xl border border-slate-200 p-4 md:grid-cols-[2fr_1fr_1fr_auto]">
+              <div key={`${index}-${item.product_id}`} className="grid gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 md:grid-cols-[2fr_1fr_1fr_auto]">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Product</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Product</label>
                   <select
                     value={item.product_id}
                     onChange={(event) => updateLineItem(index, 'product_id', event.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
                   >
                     <option value="">Select product</option>
                     {products.map((product) => (
@@ -333,24 +333,24 @@ export default function PurchaseOrdersPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Quantity</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Quantity</label>
                   <input
                     type="number"
                     min="1"
                     value={item.quantity}
                     onChange={(event) => updateLineItem(index, 'quantity', event.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Unit Price</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Unit Price</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={item.unit_price}
                     onChange={(event) => updateLineItem(index, 'unit_price', event.target.value)}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm"
                   />
                 </div>
                 <div className="flex items-end">
@@ -358,7 +358,7 @@ export default function PurchaseOrdersPage() {
                     type="button"
                     onClick={() => removeLineItem(index)}
                     disabled={form.line_items.length === 1}
-                    className="rounded-xl border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-700 disabled:border-slate-200 disabled:text-slate-400"
+                    className="rounded-xl border border-rose-200 dark:border-rose-900/50 px-4 py-3 text-sm font-semibold text-rose-700 dark:text-rose-400 disabled:border-slate-200 dark:border-slate-700 disabled:text-slate-400"
                   >
                     Remove
                   </button>
@@ -366,7 +366,7 @@ export default function PurchaseOrdersPage() {
               </div>
             ))}
 
-            <button type="button" onClick={addLineItem} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700">
+            <button type="button" onClick={addLineItem} className="rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
               Add Line Item
             </button>
           </div>
