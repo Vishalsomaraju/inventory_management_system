@@ -118,6 +118,66 @@ def fetch_purchase_order(conn, po_id: int):
     return purchase_order
 
 
+def create_draft_purchase_order(
+    conn,
+    vendor_id: int,
+    line_items: list[POLineItemRequest],
+    expected_delivery: Optional[date] = None,
+):
+    if not line_items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one line item is required",
+        )
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO purchase_orders (vendor_id, status, expected_delivery, total_amount)
+                VALUES (%s, 'draft', %s, 0)
+                RETURNING id
+                """,
+                (vendor_id, expected_delivery),
+            )
+            po_id = cursor.fetchone()[0]
+
+            for item in line_items:
+                cursor.execute(
+                    """
+                    INSERT INTO po_line_items (po_id, product_id, quantity, unit_price)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    (po_id, item.product_id, item.quantity, item.unit_price),
+                )
+
+            cursor.execute(
+                """
+                UPDATE purchase_orders
+                SET total_amount = COALESCE((
+                    SELECT SUM(quantity * unit_price)
+                    FROM po_line_items
+                    WHERE po_id = %s
+                ), 0)
+                WHERE id = %s
+                """,
+                (po_id, po_id),
+            )
+
+        conn.commit()
+    except IntegrityError as exc:
+        conn.rollback()
+        detail = "Unable to create purchase order"
+        if getattr(exc, "pgcode", None) == "23503":
+            detail = "Vendor or product not found"
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+    except Exception:
+        conn.rollback()
+        raise
+
+    return fetch_purchase_order(conn, po_id)
+
+
 @router.get("")
 def list_purchase_orders(
     status_filter: Optional[str] = Query(default=None, alias="status", pattern="^(draft|sent|received)$"),
@@ -182,59 +242,12 @@ def create_purchase_order(
     conn=Depends(get_db_connection),
 ):
     require_roles(current_user, {"admin", "manager"})
-
-    if not payload.line_items:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one line item is required",
-        )
-
-    try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                INSERT INTO purchase_orders (vendor_id, status, expected_delivery, total_amount)
-                VALUES (%s, 'draft', %s, 0)
-                RETURNING id
-                """,
-                (payload.vendor_id, payload.expected_delivery),
-            )
-            po_id = cursor.fetchone()[0]
-
-            for item in payload.line_items:
-                cursor.execute(
-                    """
-                    INSERT INTO po_line_items (po_id, product_id, quantity, unit_price)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (po_id, item.product_id, item.quantity, item.unit_price),
-                )
-
-            cursor.execute(
-                """
-                UPDATE purchase_orders
-                SET total_amount = COALESCE((
-                    SELECT SUM(quantity * unit_price)
-                    FROM po_line_items
-                    WHERE po_id = %s
-                ), 0)
-                WHERE id = %s
-                """,
-                (po_id, po_id),
-            )
-
-        conn.commit()
-    except IntegrityError as exc:
-        conn.rollback()
-        detail = "Unable to create purchase order"
-        if getattr(exc, "pgcode", None) == "23503":
-            detail = "Vendor or product not found"
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
-    except Exception:
-        conn.rollback()
-        raise
-
-    return fetch_purchase_order(conn, po_id)
+    return create_draft_purchase_order(
+        conn=conn,
+        vendor_id=payload.vendor_id,
+        line_items=payload.line_items,
+        expected_delivery=payload.expected_delivery,
+    )
 
 
 @router.post("/{po_id}/send")

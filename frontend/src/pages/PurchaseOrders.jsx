@@ -8,6 +8,7 @@ const PurchaseOrders = () => {
   
   // Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAISuggestionsModal, setShowAISuggestionsModal] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null); // Used for details modal
 
   const fetchPOs = useCallback(async () => {
@@ -72,13 +73,24 @@ const PurchaseOrders = () => {
       {/* Header Bar */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
         <h2 className="text-lg font-bold text-gray-800">Purchase Orders</h2>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Create PO
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAISuggestionsModal(true)}
+            className="flex items-center gap-2 bg-purple-600 text-white px-5 py-2 rounded-lg hover:bg-purple-700 transition-colors shadow-sm font-medium"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            AI Suggest Reorders
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            Create PO
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -107,10 +119,10 @@ const PurchaseOrders = () => {
                     <td className="py-4 px-6 font-medium text-blue-600 cursor-pointer" onClick={() => handleOpenDetails(po.id)}>
                       #{po.po_number || po.id.toString().padStart(3, '0')}
                     </td>
-                    <td className="py-4 px-6 font-medium text-gray-800">{po.vendor?.name || po.vendor_id}</td>
+                    <td className="py-4 px-6 font-medium text-gray-800">{po.vendor?.name || po.vendor_name || po.vendor_id}</td>
                     <td className="py-4 px-6 text-center">{getStatusBadge(po.status)}</td>
-                    <td className="py-4 px-6 text-gray-500">{new Date(po.created_at || new Date()).toLocaleDateString()}</td>
-                    <td className="py-4 px-6 text-gray-500">{po.expected_delivery ? new Date(po.expected_delivery).toLocaleDateString() : '—'}</td>
+                    <td className="py-4 px-6 text-gray-500">{new Date(po.created_date || po.created_at || new Date()).toLocaleDateString()}</td>
+                    <td className="py-4 px-6 text-gray-500">{po.expected_delivery ? new Date(po.expected_delivery).toLocaleDateString() : '-'}</td>
                     <td className="py-4 px-6 text-right font-mono font-bold">${(po.total_amount || 0).toFixed(2)}</td>
                     <td className="py-4 px-6">
                       <div className="flex justify-end gap-2">
@@ -142,6 +154,18 @@ const PurchaseOrders = () => {
           close={() => setShowCreateModal(false)}
           onSuccess={() => { fetchPOs(); showToast('Purchase order created successfully'); setShowCreateModal(false); }}
           onError={(m) => showToast(m, 'error')}
+        />
+      )}
+
+      {showAISuggestionsModal && (
+        <AISuggestedReordersModal
+          close={() => setShowAISuggestionsModal(false)}
+          onCreated={(createdCount) => {
+            fetchPOs();
+            showToast(createdCount === 1 ? 'Draft purchase order created' : `${createdCount} draft purchase orders created`);
+          }}
+          onOpenPO={handleOpenDetails}
+          onError={(message) => showToast(message, 'error')}
         />
       )}
 
@@ -198,9 +222,13 @@ const CreatePOModal = ({ close, onSuccess, onError }) => {
     setLoading(true);
     try {
       await api.post('/purchase-orders', {
-        vendor_id: vendorId,
+        vendor_id: Number(vendorId),
         expected_delivery: expectedDelivery || null,
-        items: items
+        line_items: items.map((item) => ({
+          product_id: Number(item.product_id),
+          quantity: Number(item.quantity),
+          unit_price: Number(item.unit_price),
+        })),
       });
       onSuccess();
     } catch (err) {
@@ -289,6 +317,190 @@ const CreatePOModal = ({ close, onSuccess, onError }) => {
   );
 };
 
+const AISuggestedReordersModal = ({ close, onCreated, onOpenPO, onError }) => {
+  const [loading, setLoading] = useState(true);
+  const [creatingAll, setCreatingAll] = useState(false);
+  const [creatingIndex, setCreatingIndex] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [createdPOs, setCreatedPOs] = useState([]);
+
+  const loadSuggestions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.post('/ai/suggest-reorder');
+      setSuggestions(Array.isArray(response.data?.purchase_orders) ? response.data.purchase_orders : []);
+    } catch (err) {
+      onError(err.response?.data?.detail || 'Failed to load AI reorder suggestions');
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [onError]);
+
+  useEffect(() => {
+    loadSuggestions();
+  }, [loadSuggestions]);
+
+  const markCreated = (orders) => {
+    setCreatedPOs((prev) => [...prev, ...orders.filter((order) => !prev.some((existing) => existing.id === order.id))]);
+    setSuggestions((prev) => prev.filter((suggestion) => !orders.some((order) => order.vendor_id === suggestion.vendor_id)));
+    if (orders.length > 0) {
+      onCreated(orders.length);
+    }
+  };
+
+  const createSuggestions = async (selectedSuggestions) => {
+    const response = await api.post('/ai/create-suggested-orders', {
+      suggestions: selectedSuggestions,
+    });
+    return Array.isArray(response.data?.created_purchase_orders) ? response.data.created_purchase_orders : [];
+  };
+
+  const handleCreateAll = async () => {
+    if (suggestions.length === 0) return;
+    setCreatingAll(true);
+    try {
+      const created = await createSuggestions(suggestions);
+      markCreated(created);
+    } catch (err) {
+      onError(err.response?.data?.detail || 'Failed to create draft purchase orders');
+    } finally {
+      setCreatingAll(false);
+    }
+  };
+
+  const handleCreateOne = async (suggestion, index) => {
+    setCreatingIndex(index);
+    try {
+      const created = await createSuggestions([suggestion]);
+      markCreated(created);
+    } catch (err) {
+      onError(err.response?.data?.detail || 'Failed to create draft purchase order');
+    } finally {
+      setCreatingIndex(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-12 bg-gray-900/60 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-full flex flex-col overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+          <div>
+            <h3 className="text-xl font-bold text-gray-800">AI Suggested Reorders</h3>
+            <p className="text-sm text-gray-500 mt-1">Vendor-grouped draft purchase order recommendations based on low stock and recent outbound movement.</p>
+          </div>
+          <button onClick={close} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto flex-1 space-y-6 bg-white">
+          {loading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="rounded-xl border border-purple-100 bg-purple-50/50 p-5 animate-pulse">
+                  <div className="h-5 w-40 bg-purple-100 rounded mb-4"></div>
+                  <div className="h-4 w-full bg-purple-100 rounded mb-2"></div>
+                  <div className="h-4 w-5/6 bg-purple-100 rounded"></div>
+                </div>
+              ))}
+            </div>
+          ) : suggestions.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-gray-500">
+              No reorder suggestions are available right now.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {suggestions.map((suggestion, index) => (
+                <div key={`${suggestion.vendor_id}-${index}`} className="rounded-xl border border-purple-200 bg-purple-50/40 p-5 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 text-purple-700">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        <h4 className="text-lg font-bold text-gray-900">{suggestion.vendor_name || `Vendor #${suggestion.vendor_id}`}</h4>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Estimated total spend: ${Number(suggestion.estimated_total_spend || 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCreateOne(suggestion, index)}
+                      disabled={creatingAll || creatingIndex !== null}
+                      className="self-start rounded-lg bg-white px-4 py-2 text-sm font-medium text-purple-700 border border-purple-200 hover:bg-purple-100 disabled:opacity-50"
+                    >
+                      {creatingIndex === index ? 'Creating...' : 'Create'}
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {suggestion.items?.map((item, itemIndex) => (
+                      <div key={`${item.product_id}-${itemIndex}`} className="rounded-lg bg-white border border-purple-100 px-4 py-3">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-gray-800">{item.product_name}</p>
+                            <p className="text-sm text-gray-500 mt-1">{item.reason}</p>
+                          </div>
+                          <div className="text-sm text-gray-600 md:text-right">
+                            <div>Qty: <span className="font-semibold text-gray-900">{item.suggested_quantity}</span></div>
+                            <div>Est. unit: <span className="font-semibold text-gray-900">${Number(item.unit_price_estimate || 0).toFixed(2)}</span></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {createdPOs.length > 0 && (
+            <div className="rounded-xl border border-green-200 bg-green-50 p-5">
+              <h4 className="text-sm font-bold uppercase tracking-wide text-green-800">Created Draft POs</h4>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {createdPOs.map((po) => (
+                  <button
+                    key={po.id}
+                    type="button"
+                    onClick={() => onOpenPO(po.id)}
+                    className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-green-700 border border-green-200 hover:bg-green-100"
+                  >
+                    #{String(po.id).padStart(3, '0')} {po.vendor_name ? `- ${po.vendor_name}` : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 border border-gray-200">
+            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            Powered by Claude
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={close} className="px-5 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50">
+              Close
+            </button>
+            <button
+              type="button"
+              onClick={handleCreateAll}
+              disabled={loading || suggestions.length === 0 || creatingAll || creatingIndex !== null}
+              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg disabled:opacity-50"
+            >
+              {creatingAll ? 'Creating...' : 'Create All as Draft'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ============================================
 // PO Details Modal (Slide-over style panel inside a modal overlay)
 // ============================================
@@ -299,7 +511,7 @@ const PODetailsModal = ({ po, close, getStatusBadge }) => {
         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-start bg-gray-50">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">PO #{po.po_number || po.id.toString().padStart(3, '0')}</h2>
-            <p className="text-sm text-gray-500 mt-1">Created on {new Date(po.created_at).toLocaleDateString()}</p>
+            <p className="text-sm text-gray-500 mt-1">Created on {new Date(po.created_date || po.created_at).toLocaleDateString()}</p>
           </div>
           <button onClick={close} className="bg-white p-2 rounded-full shadow-sm hover:bg-gray-50 text-gray-500 border border-gray-200">
              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
@@ -335,7 +547,7 @@ const PODetailsModal = ({ po, close, getStatusBadge }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {(po.items || []).map((item, i) => (
+                {((po.line_items || po.items) || []).map((item, i) => (
                   <tr key={i}>
                     <td className="py-4 px-3">
                       <div className="font-medium text-gray-800">{item.product?.name || item.product_name || `Product #${item.product_id}`}</div>

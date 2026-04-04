@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [insights, setInsights] = useState([]);
+  const [insightsLoading, setInsightsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -11,23 +14,20 @@ const Dashboard = () => {
     let mounted = true;
     const fetchDashboard = async () => {
       try {
-        const response = await api.get('/analytics/dashboard');
+        const [dashboardRes, insightsRes] = await Promise.all([
+          api.get('/analytics/dashboard'),
+          api.get('/ai/insights').catch(() => ({ data: { insights: [] } })),
+        ]);
         if (mounted) {
-          // Expected data structure:
-          // {
-          //   total_products: number,
-          //   low_stock_count: number,
-          //   open_purchase_orders: number,
-          //   pending_alerts: number,
-          //   recent_transactions: [{ id, date, product_name, type, quantity }],
-          //   stock_value_by_category: [{ category, count, value }]
-          // }
-          setData(response.data);
+          setData(dashboardRes.data);
+          setInsights(Array.isArray(insightsRes.data?.insights) ? insightsRes.data.insights : []);
+          setInsightsLoading(false);
           setLoading(false);
         }
       } catch (err) {
         if (mounted) {
           setError('Failed to load dashboard data.');
+          setInsightsLoading(false);
           setLoading(false);
         }
       }
@@ -72,6 +72,23 @@ const Dashboard = () => {
   };
   const recentTransactions = data?.recent_transactions || [];
   const stockByCategory = data?.stock_value_by_category || [];
+  const insightStyles = {
+    warning: {
+      card: 'border-amber-300 bg-amber-50/70',
+      icon: 'text-amber-600 bg-amber-100',
+      button: 'bg-amber-100 text-amber-800 hover:bg-amber-200',
+    },
+    suggestion: {
+      card: 'border-blue-300 bg-blue-50/70',
+      icon: 'text-blue-600 bg-blue-100',
+      button: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
+    },
+    info: {
+      card: 'border-gray-300 bg-gray-50',
+      icon: 'text-gray-600 bg-gray-200',
+      button: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
+    },
+  };
 
   return (
     <div className="space-y-6">
@@ -151,6 +168,78 @@ const Dashboard = () => {
             <p className="text-sm font-medium text-gray-500">Pending Alerts</p>
             <p className={`text-2xl font-bold ${stats.pending_alerts > 0 ? 'text-red-600' : 'text-gray-900'}`}>{stats.pending_alerts}</p>
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">AI Insights</h2>
+            <p className="text-sm text-gray-500">Machine-generated recommendations from your current inventory snapshot.</p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            Powered by Claude
+          </div>
+        </div>
+        <div className="p-6">
+          {insightsLoading ? (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, index) => (
+                <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-5 animate-pulse">
+                  <div className="h-4 w-24 rounded bg-gray-200 mb-3"></div>
+                  <div className="h-3 w-full rounded bg-gray-200 mb-2"></div>
+                  <div className="h-3 w-4/5 rounded bg-gray-200"></div>
+                </div>
+              ))}
+            </div>
+          ) : insights.length > 0 ? (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              {insights.map((insight, index) => {
+                const style = insightStyles[insight.type] || insightStyles.info;
+                return (
+                  <div key={`${insight.title || 'insight'}-${index}`} className={`rounded-xl border p-5 shadow-sm flex flex-col gap-4 ${style.card}`}>
+                    <div className="flex items-start gap-3">
+                      <div className={`rounded-full p-2 ${style.icon}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold text-gray-900">{insight.title || 'Insight'}</h3>
+                        <p className="mt-1 text-sm text-gray-700">{insight.message || 'No additional detail provided.'}</p>
+                      </div>
+                    </div>
+                    <div className="mt-auto flex items-center justify-between gap-3 pt-2">
+                      {insight.action_label && insight.action_route ? (
+                        <button
+                          type="button"
+                          onClick={() => navigate(insight.action_route)}
+                          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${style.button}`}
+                        >
+                          {insight.action_label}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-400">No action</span>
+                      )}
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs font-medium text-gray-600">
+                        <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        Powered by Claude
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-sm text-gray-500">
+              No AI insights are available right now.
+            </div>
+          )}
         </div>
       </div>
 

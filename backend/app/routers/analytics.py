@@ -22,6 +22,143 @@ def row_to_dict(cursor, row):
     return dict(zip(columns, row))
 
 
+def build_ai_context(conn):
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS total_products,
+                COALESCE(SUM(current_stock), 0) AS total_stock_value_units
+            FROM products
+            """
+        )
+        inventory_summary_row = row_to_dict(cursor, cursor.fetchone())
+
+        cursor.execute(
+            """
+            SELECT
+                COALESCE(category, 'Uncategorized') AS name,
+                COUNT(*) AS product_count,
+                COALESCE(SUM(current_stock), 0) AS total_stock
+            FROM products
+            GROUP BY COALESCE(category, 'Uncategorized')
+            ORDER BY name ASC
+            """
+        )
+        categories = rows_to_dicts(cursor, cursor.fetchall())
+
+        cursor.execute(
+            """
+            SELECT
+                p.id,
+                p.name,
+                p.sku,
+                p.category,
+                p.current_stock,
+                p.reorder_level,
+                v.name AS vendor_name
+            FROM products p
+            LEFT JOIN vendors v ON v.id = p.vendor_id
+            WHERE p.current_stock = 0
+            ORDER BY p.name ASC
+            """
+        )
+        critical_items = rows_to_dicts(cursor, cursor.fetchall())
+
+        cursor.execute(
+            """
+            SELECT
+                p.id,
+                p.name,
+                p.sku,
+                p.current_stock,
+                p.reorder_level,
+                v.name AS vendor_name
+            FROM products p
+            LEFT JOIN vendors v ON v.id = p.vendor_id
+            WHERE p.current_stock > 0
+              AND p.current_stock <= p.reorder_level
+            ORDER BY (p.current_stock - p.reorder_level) ASC, p.name ASC
+            """
+        )
+        low_stock_items = rows_to_dicts(cursor, cursor.fetchall())
+
+        cursor.execute(
+            """
+            SELECT
+                st.id,
+                p.name AS product_name,
+                st.type,
+                st.quantity,
+                st.date
+            FROM stock_transactions st
+            JOIN products p ON p.id = st.product_id
+            ORDER BY st.date DESC, st.id DESC
+            LIMIT 10
+            """
+        )
+        recent_activity = rows_to_dicts(cursor, cursor.fetchall())
+
+        cursor.execute(
+            """
+            SELECT
+                po.id,
+                po.status,
+                v.name AS vendor_name,
+                po.expected_delivery,
+                (
+                    SELECT COUNT(*)
+                    FROM po_line_items li
+                    WHERE li.po_id = po.id
+                ) AS line_item_count
+            FROM purchase_orders po
+            LEFT JOIN vendors v ON v.id = po.vendor_id
+            WHERE po.status IN ('draft', 'sent')
+            ORDER BY po.created_date DESC, po.id DESC
+            """
+        )
+        open_purchase_orders = rows_to_dicts(cursor, cursor.fetchall())
+
+        cursor.execute(
+            """
+            SELECT COUNT(*) AS unresolved_count
+            FROM alerts
+            WHERE is_resolved = FALSE
+            """
+        )
+        unresolved_count = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            SELECT
+                p.name AS product_name,
+                a.triggered_at
+            FROM alerts a
+            JOIN products p ON p.id = a.product_id
+            WHERE a.is_resolved = FALSE
+            ORDER BY a.triggered_at DESC, a.id DESC
+            """
+        )
+        unresolved_alert_items = rows_to_dicts(cursor, cursor.fetchall())
+
+    return {
+        "snapshot_time": datetime.now(timezone.utc).isoformat(),
+        "inventory_summary": {
+            "total_products": inventory_summary_row["total_products"],
+            "total_stock_value_units": inventory_summary_row["total_stock_value_units"],
+            "categories": categories,
+        },
+        "critical_items": critical_items,
+        "low_stock_items": low_stock_items,
+        "recent_activity": recent_activity,
+        "open_purchase_orders": open_purchase_orders,
+        "unresolved_alerts": {
+            "count": unresolved_count,
+            "list": unresolved_alert_items,
+        },
+    }
+
+
 @router.get("/dashboard")
 def get_dashboard(
     current_user=Depends(get_current_user),
@@ -278,137 +415,4 @@ def get_ai_context(
     current_user=Depends(get_current_user),
     conn=Depends(get_db_connection),
 ):
-    with conn.cursor() as cursor:
-        cursor.execute(
-            """
-            SELECT
-                COUNT(*) AS total_products,
-                COALESCE(SUM(current_stock), 0) AS total_stock_value_units
-            FROM products
-            """
-        )
-        inventory_summary_row = row_to_dict(cursor, cursor.fetchone())
-
-        cursor.execute(
-            """
-            SELECT
-                COALESCE(category, 'Uncategorized') AS name,
-                COUNT(*) AS product_count,
-                COALESCE(SUM(current_stock), 0) AS total_stock
-            FROM products
-            GROUP BY COALESCE(category, 'Uncategorized')
-            ORDER BY name ASC
-            """
-        )
-        categories = rows_to_dicts(cursor, cursor.fetchall())
-
-        cursor.execute(
-            """
-            SELECT
-                p.id,
-                p.name,
-                p.sku,
-                p.category,
-                p.current_stock,
-                p.reorder_level,
-                v.name AS vendor_name
-            FROM products p
-            LEFT JOIN vendors v ON v.id = p.vendor_id
-            WHERE p.current_stock = 0
-            ORDER BY p.name ASC
-            """
-        )
-        critical_items = rows_to_dicts(cursor, cursor.fetchall())
-
-        cursor.execute(
-            """
-            SELECT
-                p.id,
-                p.name,
-                p.sku,
-                p.current_stock,
-                p.reorder_level,
-                v.name AS vendor_name
-            FROM products p
-            LEFT JOIN vendors v ON v.id = p.vendor_id
-            WHERE p.current_stock > 0
-              AND p.current_stock <= p.reorder_level
-            ORDER BY (p.current_stock - p.reorder_level) ASC, p.name ASC
-            """
-        )
-        low_stock_items = rows_to_dicts(cursor, cursor.fetchall())
-
-        cursor.execute(
-            """
-            SELECT
-                st.id,
-                p.name AS product_name,
-                st.type,
-                st.quantity,
-                st.date
-            FROM stock_transactions st
-            JOIN products p ON p.id = st.product_id
-            ORDER BY st.date DESC, st.id DESC
-            LIMIT 10
-            """
-        )
-        recent_activity = rows_to_dicts(cursor, cursor.fetchall())
-
-        cursor.execute(
-            """
-            SELECT
-                po.id,
-                po.status,
-                v.name AS vendor_name,
-                po.expected_delivery,
-                (
-                    SELECT COUNT(*)
-                    FROM po_line_items li
-                    WHERE li.po_id = po.id
-                ) AS line_item_count
-            FROM purchase_orders po
-            LEFT JOIN vendors v ON v.id = po.vendor_id
-            WHERE po.status IN ('draft', 'sent')
-            ORDER BY po.created_date DESC, po.id DESC
-            """
-        )
-        open_purchase_orders = rows_to_dicts(cursor, cursor.fetchall())
-
-        cursor.execute(
-            """
-            SELECT COUNT(*) AS unresolved_count
-            FROM alerts
-            WHERE is_resolved = FALSE
-            """
-        )
-        unresolved_count = cursor.fetchone()[0]
-
-        cursor.execute(
-            """
-            SELECT
-                p.name AS product_name,
-                a.triggered_at
-            FROM alerts a
-            JOIN products p ON p.id = a.product_id
-            WHERE a.is_resolved = FALSE
-            ORDER BY a.triggered_at DESC, a.id DESC
-            """
-        )
-        unresolved_alert_items = rows_to_dicts(cursor, cursor.fetchall())
-
-    return {
-        "snapshot_time": datetime.now(timezone.utc).isoformat(),
-        "inventory_summary": {
-            "total_products": inventory_summary_row["total_products"],
-            "total_stock_value_units": inventory_summary_row["total_stock_value_units"],
-            "categories": categories,
-        },
-        "critical_items": critical_items,
-        "low_stock_items": low_stock_items,
-        "recent_activity": recent_activity,
-        "open_purchase_orders": open_purchase_orders,
-        "unresolved_alerts": {
-            "count": unresolved_count,
-            "list": unresolved_alert_items,
-        },
-    }
+    return build_ai_context(conn)

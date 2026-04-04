@@ -14,6 +14,11 @@ const Inventory = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isLowStock, setIsLowStock] = useState(searchParams.get('filter') === 'low_stock');
+  const [isAISearchMode, setIsAISearchMode] = useState(false);
+  const [aiSearchLoading, setAISearchLoading] = useState(false);
+  const [aiSearchExplanation, setAISearchExplanation] = useState('');
+  const [aiMatchedProductIds, setAIMatchedProductIds] = useState([]);
+  const [aiSearchHasRun, setAISearchHasRun] = useState(false);
   
   // Modal & Form State
   const [modalState, setModalState] = useState({ type: null, product: null });
@@ -25,10 +30,12 @@ const Inventory = () => {
   // Debounce search
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(search);
+      if (!isAISearchMode) {
+        setDebouncedSearch(search);
+      }
     }, 300);
     return () => clearTimeout(handler);
-  }, [search]);
+  }, [search, isAISearchMode]);
 
   // Update URL if low stock filter changes
   useEffect(() => {
@@ -43,25 +50,20 @@ const Inventory = () => {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      // Backend should ideally handle these filters, but we can also pass them.
-      // E.g. params: { search: debouncedSearch, category: categoryFilter, low_stock: isLowStock }
-      // The prompt says "Re-fetch when search/filter changes"
       const response = await api.get('/inventory/products', {
         params: {
-          search: debouncedSearch || undefined,
+          search: isAISearchMode ? undefined : debouncedSearch || undefined,
           category: categoryFilter || undefined,
           low_stock: isLowStock || undefined
         }
       });
-      // Fallback in case the API doesn't support the filters natively yet, we can also filter frontend
-      // But passing params is better.
       setProducts(response.data);
     } catch (err) {
       showToast('Failed to load products', 'error');
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, categoryFilter, isLowStock]);
+  }, [debouncedSearch, categoryFilter, isLowStock, isAISearchMode]);
 
   useEffect(() => {
     fetchProducts();
@@ -92,12 +94,74 @@ const Inventory = () => {
     return [...new Set(cats)];
   }, [products]);
 
+  const displayedProducts = useMemo(() => {
+    if (!isAISearchMode || !aiSearchHasRun) {
+      return products;
+    }
+    const matchedIds = new Set(aiMatchedProductIds);
+    return products.filter((product) => matchedIds.has(product.id));
+  }, [products, isAISearchMode, aiMatchedProductIds, aiSearchHasRun]);
+
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
 
   const getStockColor = (stock, reorder) => {
     if (stock <= reorder) return 'text-red-600 bg-red-100';
     if (stock > reorder * 2) return 'text-green-700 bg-green-100';
     return 'text-amber-600 bg-amber-100';
+  };
+
+  const clearAISearch = () => {
+    setIsAISearchMode(false);
+    setAISearchLoading(false);
+    setAISearchExplanation('');
+    setAIMatchedProductIds([]);
+    setAISearchHasRun(false);
+  };
+
+  const handleSearchSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!isAISearchMode) {
+      setDebouncedSearch(search);
+      return;
+    }
+
+    const query = search.trim();
+    if (!query) {
+      clearAISearch();
+      return;
+    }
+
+    setAISearchLoading(true);
+    setAISearchHasRun(false);
+    setAISearchExplanation('');
+    try {
+      const response = await api.post('/ai/search', { query });
+      setAIMatchedProductIds(
+        Array.isArray(response.data?.product_ids) ? response.data.product_ids : []
+      );
+      setAISearchHasRun(true);
+      setAISearchExplanation(
+        response.data?.explanation || 'AI search matched the most relevant products for your request.'
+      );
+    } catch (err) {
+      setAIMatchedProductIds([]);
+      setAISearchHasRun(false);
+      setAISearchExplanation('');
+      showToast(err.response?.data?.detail || 'AI search failed', 'error');
+    } finally {
+      setAISearchLoading(false);
+    }
+  };
+
+  const toggleAISearchMode = () => {
+    if (isAISearchMode) {
+      clearAISearch();
+      return;
+    }
+    setIsAISearchMode(true);
+    setDebouncedSearch('');
+    setAISearchHasRun(false);
   };
 
   return (
@@ -118,19 +182,50 @@ const Inventory = () => {
 
       {/* Top Bar */}
       <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-        <div className="flex flex-1 gap-4 items-center w-full md:w-auto">
+        <form onSubmit={handleSearchSubmit} className="flex flex-1 gap-4 items-center w-full md:w-auto">
           <div className="relative flex-1 max-w-md">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
             <input 
               type="text" 
-              placeholder="Search by name or SKU..." 
+              placeholder={isAISearchMode ? "Ask anything... e.g. 'show me low stock electronics'" : "Search by name or SKU..."} 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              disabled={aiSearchLoading}
+              className={`w-full pl-10 pr-28 py-2 border rounded-lg outline-none transition-all ${
+                isAISearchMode
+                  ? 'border-purple-300 focus:ring-2 focus:ring-purple-500 focus:border-purple-500'
+                  : 'border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+              } ${aiSearchLoading ? 'bg-gray-50 text-gray-500' : ''}`}
             />
+            <button
+              type="submit"
+              disabled={aiSearchLoading}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                isAISearchMode
+                  ? 'bg-purple-600 text-white hover:bg-purple-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              } disabled:opacity-50`}
+            >
+              {aiSearchLoading ? 'Thinking...' : 'Search'}
+            </button>
           </div>
+          <button
+            type="button"
+            onClick={toggleAISearchMode}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors border whitespace-nowrap ${
+              isAISearchMode
+                ? 'bg-purple-100 border-purple-200 text-purple-800'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+            title="Toggle AI search"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            AI Search
+          </button>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
@@ -147,7 +242,7 @@ const Inventory = () => {
           >
             Low Stock Only
           </button>
-        </div>
+        </form>
         {canEdit && (
           <button
             onClick={() => setModalState({ type: 'add', product: null })}
@@ -158,6 +253,27 @@ const Inventory = () => {
           </button>
         )}
       </div>
+
+      {isAISearchMode && aiSearchExplanation && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-800">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              AI Search
+            </div>
+            <p className="text-sm text-purple-900">{aiSearchExplanation}</p>
+          </div>
+          <button
+            type="button"
+            onClick={clearAISearch}
+            className="self-start md:self-auto text-sm font-medium text-purple-700 hover:text-purple-900 bg-white border border-purple-200 rounded-lg px-3 py-2"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Table Area */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -185,14 +301,14 @@ const Inventory = () => {
                     Loading products...
                   </td>
                 </tr>
-              ) : products.length === 0 ? (
+              ) : displayedProducts.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="py-12 text-center text-gray-500">
                     No products found matching your criteria.
                   </td>
                 </tr>
               ) : (
-                products.map((product) => (
+                displayedProducts.map((product) => (
                   <tr key={product.id} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6 font-medium text-gray-800">{product.name}</td>
                     <td className="py-4 px-6 text-gray-500">{product.sku}</td>
@@ -203,7 +319,7 @@ const Inventory = () => {
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right text-gray-500">{product.reorder_level}</td>
-                    <td className="py-4 px-6 text-gray-500">{product.vendor?.name || product.vendor_id || '—'}</td>
+                    <td className="py-4 px-6 text-gray-500">{product.vendor?.name || product.vendor_name || product.vendor_id || '-'}</td>
                     <td className="py-4 px-6">
                       <div className="flex justify-center gap-2">
                         <button
