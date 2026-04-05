@@ -5,6 +5,7 @@ import {
   MdStorefront,
   MdShoppingCart,
   MdNotifications,
+  MdSmartToy,
   MdLightMode,
   MdDarkMode,
   MdLogout,
@@ -19,6 +20,7 @@ const navItems = [
   { label: 'Vendors', to: '/vendors', icon: MdStorefront },
   { label: 'Purchase Orders', to: '/purchase-orders', icon: MdShoppingCart },
   { label: 'Alerts', to: '/alerts', icon: MdNotifications },
+  { label: 'AI Assistant', to: '/ai', icon: MdSmartToy },
 ];
 
 export default function Navbar() {

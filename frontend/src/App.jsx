@@ -10,6 +10,7 @@ import InventoryPage from './pages/InventoryPage';
 import LoginPage from './pages/LoginPage';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import VendorsPage from './pages/VendorsPage';
+import AIAssistant from './pages/AIAssistant';
 
 
 function ProtectedLayout() {
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/vendors" element={<VendorsPage />} />
               <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
+              <Route path="/ai" element={<AIAssistant />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
