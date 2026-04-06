@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from app.config.database import get_db_connection
-from services.ai_services import run_ai_agent, generate_proactive_insights
+from app.services.ai_services import run_ai_agent, generate_proactive_insights
 
 router = APIRouter()
 

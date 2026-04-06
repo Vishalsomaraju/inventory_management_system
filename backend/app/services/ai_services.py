@@ -289,12 +289,10 @@ def run_ai_agent(messages: list, conn) -> dict:
     """
     actions_taken = []
 
-    # Convert to Groq/OpenAI message format (plain dicts with role/content strings)
-    groq_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    for m in messages:
-        # Only include simple string-content messages from history
-        if isinstance(m.get("content"), str):
-            groq_messages.append({"role": m["role"], "content": m["content"]})
+    # Build the full message list: system prompt + caller-supplied history
+    groq_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + [
+        m for m in messages if isinstance(m.get("content"), str)
+    ]
 
     # Safety cap — prevent infinite tool loops
     for _ in range(10):
@@ -309,45 +307,46 @@ def run_ai_agent(messages: list, conn) -> dict:
         choice = response.choices[0]
         msg = choice.message
 
-        # No tool calls — final answer
-        if not msg.tool_calls:
+        if choice.finish_reason == "stop":
             return {"response": msg.content or "", "actions_taken": actions_taken}
 
-        # Append the assistant message (with tool_calls) to history
-        groq_messages.append({
-            "role": "assistant",
-            "content": msg.content or "",
-            "tool_calls": [
-                {
-                    "id": tc.id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    }
-                }
-                for tc in msg.tool_calls
-            ]
-        })
+        elif choice.finish_reason == "tool_calls":
+            tool_results = []
+            for tc in msg.tool_calls:
+                label = tc.function.name.replace("_", " ").title()
+                actions_taken.append(label)
+                try:
+                    args = json.loads(tc.function.arguments)
+                except (json.JSONDecodeError, TypeError):
+                    args = {}
+                result = execute_tool(tc.function.name, args, conn)
+                tool_results.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result, default=str),
+                })
 
-        # Execute each tool call and append results
-        for tc in msg.tool_calls:
-            tool_name = tc.function.name
-            try:
-                tool_input = json.loads(tc.function.arguments)
-            except (json.JSONDecodeError, TypeError):
-                tool_input = {}
-
-            label = tool_name.replace("_", " ").title()
-            actions_taken.append(label)
-
-            result = execute_tool(tool_name, tool_input, conn)
-
+            # Append assistant turn and tool results to the running message list
             groq_messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": json.dumps(result, default=str),
+                "role": "assistant",
+                "content": msg.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in msg.tool_calls
+                ],
             })
+            groq_messages.extend(tool_results)
+
+        else:
+            # Unexpected finish_reason — bail out
+            break
 
     return {
         "response": "I ran into an issue completing your request. Please try again.",
