@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 
 import api from '../api/axios';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { SkeletonBlock, StatCardSkeleton } from '../components/Skeleton';
 
 
 function getErrorMessage(error, fallback) {
@@ -87,7 +87,25 @@ export default function DashboardPage() {
   );
 
   if (loading) {
-    return <LoadingSpinner label="Loading dashboard..." />;
+    return (
+      <div className="space-y-8">
+        {/* Stat cards */}
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => <StatCardSkeleton key={i} />)}
+        </div>
+        {/* Chart panels */}
+        <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+          <div className="rounded-2xl bg-white dark:bg-slate-800 shadow-sm p-6 space-y-4">
+            <div className="space-y-2"><SkeletonBlock className="h-5 w-40" /><SkeletonBlock className="h-3 w-64" /></div>
+            <SkeletonBlock className="h-72 rounded-2xl" />
+          </div>
+          <div className="rounded-2xl bg-white dark:bg-slate-800 shadow-sm p-6 space-y-4">
+            <div className="space-y-2"><SkeletonBlock className="h-5 w-44" /><SkeletonBlock className="h-3 w-56" /></div>
+            <SkeletonBlock className="h-72 rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) {

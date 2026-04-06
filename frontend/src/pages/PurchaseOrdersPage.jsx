@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 
 import api from '../api/axios';
 import Badge from '../components/Badge';
-import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
+import { HeaderSkeleton, TableSkeleton } from '../components/Skeleton';
 import Toast from '../components/Toast';
 
 
@@ -158,7 +158,12 @@ export default function PurchaseOrdersPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading purchase orders..." />;
+    return (
+      <div className="space-y-6">
+        <HeaderSkeleton />
+        <TableSkeleton rows={6} cols={6} />
+      </div>
+    );
   }
 
   return (

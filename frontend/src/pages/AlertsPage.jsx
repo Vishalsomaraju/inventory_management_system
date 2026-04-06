@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import api from '../api/axios';
-import LoadingSpinner from '../components/LoadingSpinner';
+import { HeaderSkeleton, TableSkeleton } from '../components/Skeleton';
 import Toast from '../components/Toast';
 
 
@@ -44,7 +44,12 @@ export default function AlertsPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading alerts..." />;
+    return (
+      <div className="space-y-6">
+        <HeaderSkeleton hasButton={false} />
+        <TableSkeleton rows={5} cols={6} />
+      </div>
+    );
   }
 
   return (

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import api from '../api/axios';
-import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
+import { HeaderSkeleton, SkeletonBlock, TableSkeleton } from '../components/Skeleton';
 import Toast from '../components/Toast';
 
 
@@ -164,7 +164,22 @@ export default function InventoryPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading inventory..." />;
+    return (
+      <div className="space-y-6">
+        {/* Filters bar skeleton */}
+        <div className="rounded-2xl bg-white dark:bg-slate-800 p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="grid flex-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2"><SkeletonBlock className="h-3 w-16" /><SkeletonBlock className="h-10" /></div>
+              <div className="space-y-2"><SkeletonBlock className="h-3 w-16" /><SkeletonBlock className="h-10" /></div>
+              <div className="flex items-end"><SkeletonBlock className="h-5 w-32" /></div>
+            </div>
+            <SkeletonBlock className="h-10 w-32" />
+          </div>
+        </div>
+        <TableSkeleton rows={8} cols={7} />
+      </div>
+    );
   }
 
   return (

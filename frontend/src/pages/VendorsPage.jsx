@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 
 import api from '../api/axios';
-import LoadingSpinner from '../components/LoadingSpinner';
 import Modal from '../components/Modal';
+import { HeaderSkeleton, TableSkeleton } from '../components/Skeleton';
 import Toast from '../components/Toast';
 
 
@@ -103,7 +103,12 @@ export default function VendorsPage() {
   };
 
   if (loading) {
-    return <LoadingSpinner label="Loading vendors..." />;
+    return (
+      <div className="space-y-6">
+        <HeaderSkeleton />
+        <TableSkeleton rows={5} cols={6} />
+      </div>
+    );
   }
 
   return (
