@@ -8,6 +8,7 @@ import AlertsPage from './pages/AlertsPage';
 import DashboardPage from './pages/DashboardPage';
 import InventoryPage from './pages/InventoryPage';
 import LoginPage from './pages/LoginPage';
+import PnLDashboard from './pages/PnLDashboard';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
 import VendorsPage from './pages/VendorsPage';
 import AIAssistant from './pages/AIAssistant';
@@ -38,6 +39,7 @@ export default function App() {
               <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
               <Route path="/ai" element={<AIAssistant />} />
+              <Route path="/pnl" element={<PnLDashboard />} />
             </Route>
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
