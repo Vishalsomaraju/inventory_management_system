@@ -55,3 +55,57 @@ export async function fetchPnLCategories(year, month) {
     throw normalizeError(error, 'Failed to fetch category breakdown');
   }
 }
+
+
+export async function fetchMonthlySales(year, month) {
+  try {
+    const response = await api.get('/analytics/sales/monthly', withAuthHeaders({ params: { year, month } }));
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error, 'Failed to fetch monthly sales analysis');
+  }
+}
+
+
+export async function fetchProductTrend(productId, months = 6) {
+  try {
+    const response = await api.get(
+      '/analytics/sales/trend',
+      withAuthHeaders({ params: { product_id: productId, months } }),
+    );
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error, 'Failed to fetch product sales trend');
+  }
+}
+
+
+export async function fetchSalesCategories(year, month) {
+  try {
+    const response = await api.get('/analytics/sales/categories', withAuthHeaders({ params: { year, month } }));
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error, 'Failed to fetch sales category breakdown');
+  }
+}
+
+export async function fetchStockHealth() {
+  try {
+    const response = await api.get('/analytics/stock-health', withAuthHeaders());
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error, 'Failed to fetch stock health');
+  }
+}
+
+export async function fetchStockHealthTimeline(days = 30) {
+  try {
+    const response = await api.get(
+      '/analytics/stock-health/timeline',
+      withAuthHeaders({ params: { days } })
+    );
+    return response.data;
+  } catch (error) {
+    throw normalizeError(error, 'Failed to fetch stock health timeline');
+  }
+}

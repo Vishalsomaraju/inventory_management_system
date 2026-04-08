@@ -1,337 +1,207 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import api from '../lib/api';
+import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import api from '../api/axios';
 
-const Dashboard = () => {
+// Generic SVGs for cards
+const Icons = {
+  products: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>,
+  lowStock: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>,
+  outStock: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>,
+  po: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-500"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>,
+  alerts: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-rose-500"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>,
+  revenue: <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-500"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+};
+
+const StatCard = ({ title, value, subtitle, icon }) => (
+  <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6 flex items-start justify-between">
+    <div>
+      <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">{title}</p>
+      <h3 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{value}</h3>
+      {subtitle && <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 font-medium">{subtitle}</p>}
+    </div>
+    <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-lg shrink-0">
+      {icon}
+    </div>
+  </div>
+);
+
+export default function Dashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
-  const [insights, setInsights] = useState([]);
-  const [insightsLoading, setInsightsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let mounted = true;
     const fetchDashboard = async () => {
       try {
-        const [dashboardRes, insightsRes] = await Promise.all([
-          api.get('/analytics/dashboard'),
-          api.get('/ai/insights').catch(() => ({ data: { insights: [] } })),
-        ]);
-        if (mounted) {
-          setData(dashboardRes.data);
-          setInsights(Array.isArray(insightsRes.data?.insights) ? insightsRes.data.insights : []);
-          setInsightsLoading(false);
-          setLoading(false);
-        }
+        const token = localStorage.getItem('token');
+        const res = await api.get('/analytics/dashboard-summary', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setData(res.data);
       } catch (err) {
-        if (mounted) {
-          setError('Failed to load dashboard data.');
-          setInsightsLoading(false);
-          setLoading(false);
-        }
+        console.error("Error fetching dashboard summary", err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchDashboard();
-    return () => { mounted = false; };
   }, []);
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-              <div className="h-8 bg-gray-300 rounded w-1/3"></div>
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 bg-white rounded-xl shadow-sm h-64 border border-gray-100 animate-pulse"></div>
-          <div className="bg-white rounded-xl shadow-sm h-64 border border-gray-100 animate-pulse"></div>
-        </div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-blue-600 animate-spin"></div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
-        {error}
-      </div>
-    );
-  }
+  if (!data) return null;
 
-  // Fallbacks using optional chaining or logical OR to avoid crashes
-  const stats = {
-    total_products: data?.total_products || 0,
-    low_stock_count: data?.low_stock_count || 0,
-    open_purchase_orders: data?.open_purchase_orders || 0,
-    pending_alerts: data?.pending_alerts || 0,
-  };
-  const recentTransactions = data?.recent_transactions || [];
-  const stockByCategory = data?.stock_value_by_category || [];
-  const insightStyles = {
-    warning: {
-      card: 'border-amber-300 bg-amber-50/70',
-      icon: 'text-amber-600 bg-amber-100',
-      button: 'bg-amber-100 text-amber-800 hover:bg-amber-200',
-    },
-    suggestion: {
-      card: 'border-blue-300 bg-blue-50/70',
-      icon: 'text-blue-600 bg-blue-100',
-      button: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
-    },
-    info: {
-      card: 'border-gray-300 bg-gray-50',
-      icon: 'text-gray-600 bg-gray-200',
-      button: 'bg-gray-200 text-gray-800 hover:bg-gray-300',
-    },
+  const { inventory, orders, alerts, sales_today, top_movers_7d } = data;
+
+  const handleOpenAI = () => {
+    window.dispatchEvent(new CustomEvent('open-ai-assistant'));
   };
 
   return (
-    <div className="space-y-6">
-      {stats.low_stock_count > 0 && (
-        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg flex items-center justify-between shadow-sm">
-          <div className="flex items-center">
-            <svg className="w-6 h-6 text-amber-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-            <div>
-              <h3 className="text-sm font-medium text-amber-800">
-                Low Stock Alert
-              </h3>
-              <p className="text-sm text-amber-700 mt-1">
-                You have {stats.low_stock_count} items running critically low.
-              </p>
-            </div>
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500">
+      
+      {/* Alert Banner / Dead Stock Warning */}
+      {inventory.dead_stock_count > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+          <div className="flex items-center gap-3 text-amber-800 dark:text-amber-300">
+            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <p className="font-medium text-sm">
+              <span className="font-bold">{inventory.dead_stock_count} products</span> are dead stock — last moved 30+ days ago.
+            </p>
           </div>
-          <Link
-            to="/inventory?filter=low_stock"
-            className="text-sm font-semibold text-amber-800 hover:text-amber-900 bg-amber-100 px-4 py-2 rounded-lg transition-colors"
+          <button 
+            onClick={() => navigate('/stock-health')}
+            className="px-4 py-1.5 shrink-0 bg-amber-100 hover:bg-amber-200 dark:bg-amber-800 dark:hover:bg-amber-700 text-amber-800 dark:text-amber-100 text-sm font-semibold rounded-lg transition-colors border border-amber-200 dark:border-amber-700"
           >
-            View all
-          </Link>
+            View in Stock Health
+          </button>
         </div>
       )}
 
-      {/* Stats Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Products */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
-          <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Total Products</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total_products}</p>
-          </div>
-        </div>
-
-        {/* Low Stock Items */}
-        <Link to="/inventory?filter=low_stock" className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center hover:shadow-md transition-shadow group">
-          <div className={`p-3 rounded-full mr-4 transition-colors ${stats.low_stock_count > 0 ? 'bg-amber-100 text-amber-600 group-hover:bg-amber-200' : 'bg-gray-100 text-gray-500'}`}>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Low Stock Items</p>
-            <p className={`text-2xl font-bold ${stats.low_stock_count > 0 ? 'text-amber-600' : 'text-gray-900'}`}>{stats.low_stock_count}</p>
-          </div>
-        </Link>
-
-        {/* Open Purchase Orders */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
-          <div className="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Open POs</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.open_purchase_orders}</p>
-          </div>
-        </div>
-
-        {/* Pending Alerts */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center">
-          <div className={`p-3 rounded-full mr-4 ${stats.pending_alerts > 0 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-green-100 text-green-600'}`}>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-gray-500">Pending Alerts</p>
-            <p className={`text-2xl font-bold ${stats.pending_alerts > 0 ? 'text-red-600' : 'text-gray-900'}`}>{stats.pending_alerts}</p>
-          </div>
-        </div>
+      {/* KPI Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatCard 
+          title="Total Products" 
+          value={inventory.total_products} 
+          subtitle={`₹${inventory.total_stock_value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:2})} total stock value`}
+          icon={Icons.products} 
+        />
+        <StatCard 
+          title="Low Stock" 
+          value={inventory.low_stock_count} 
+          subtitle="Items at or below reorder level"
+          icon={Icons.lowStock} 
+        />
+        <StatCard 
+          title="Out of Stock" 
+          value={inventory.out_of_stock_count} 
+          subtitle="Requires immediate attention"
+          icon={Icons.outStock} 
+        />
+        <StatCard 
+          title="Pending POs" 
+          value={orders.pending_pos} 
+          subtitle={`₹${orders.pending_po_value.toLocaleString()} pending value`}
+          icon={Icons.po} 
+        />
+        <StatCard 
+          title="Active Alerts" 
+          value={alerts.active_alerts} 
+          subtitle={`${alerts.resolved_today} resolved today`}
+          icon={Icons.alerts} 
+        />
+        <StatCard 
+          title="Today's Revenue" 
+          value={`₹${sales_today.revenue.toLocaleString()}`} 
+          subtitle={`${sales_today.units_out} units shipped out`}
+          icon={Icons.revenue} 
+        />
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-800">AI Insights</h2>
-            <p className="text-sm text-gray-500">Machine-generated recommendations from your current inventory snapshot.</p>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-            <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-            </svg>
-            Powered by Claude
-          </div>
-        </div>
-        <div className="p-6">
-          {insightsLoading ? (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              {[...Array(3)].map((_, index) => (
-                <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-5 animate-pulse">
-                  <div className="h-4 w-24 rounded bg-gray-200 mb-3"></div>
-                  <div className="h-3 w-full rounded bg-gray-200 mb-2"></div>
-                  <div className="h-3 w-4/5 rounded bg-gray-200"></div>
-                </div>
-              ))}
-            </div>
-          ) : insights.length > 0 ? (
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              {insights.map((insight, index) => {
-                const style = insightStyles[insight.type] || insightStyles.info;
-                return (
-                  <div key={`${insight.title || 'insight'}-${index}`} className={`rounded-xl border p-5 shadow-sm flex flex-col gap-4 ${style.card}`}>
-                    <div className="flex items-start gap-3">
-                      <div className={`rounded-full p-2 ${style.icon}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M4.93 19h14.14c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.2 16c-.77 1.33.19 3 1.73 3z" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-base font-semibold text-gray-900">{insight.title || 'Insight'}</h3>
-                        <p className="mt-1 text-sm text-gray-700">{insight.message || 'No additional detail provided.'}</p>
-                      </div>
-                    </div>
-                    <div className="mt-auto flex items-center justify-between gap-3 pt-2">
-                      {insight.action_label && insight.action_route ? (
-                        <button
-                          type="button"
-                          onClick={() => navigate(insight.action_route)}
-                          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${style.button}`}
-                        >
-                          {insight.action_label}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-gray-400">No action</span>
-                      )}
-                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs font-medium text-gray-600">
-                        <svg className="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                        </svg>
-                        Powered by Claude
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 py-10 text-center text-sm text-gray-500">
-              No AI insights are available right now.
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activity Table */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
-              <thead className="bg-gray-50 text-gray-600">
-                <tr>
-                  <th className="px-6 py-3 font-medium">Date</th>
-                  <th className="px-6 py-3 font-medium">Product</th>
-                  <th className="px-6 py-3 font-medium">Type</th>
-                  <th className="px-6 py-3 font-medium">Quantity</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {recentTransactions.length > 0 ? (
-                  recentTransactions.map((tx, idx) => (
-                    <tr key={tx.id || idx} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-gray-500">
-                        {new Date(tx.date).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        {tx.product_name}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          tx.type.toLowerCase() === 'in' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        }`}>
-                          {tx.type.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-gray-900 font-medium">
-                        {tx.type.toLowerCase() === 'in' ? '+' : '-'}{tx.quantity}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="4" className="px-6 py-8 text-center text-gray-500">
-                      No recent activity found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Stock by Category Chart */}
-        <div className="lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-100">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800">Stock by Category</h2>
-          </div>
-          <div className="p-6">
-            {stockByCategory.length > 0 ? (
-              <div className="space-y-4">
-                {stockByCategory.map((cat, idx) => {
-                  // Find the max count to scale the bars
-                  const maxCount = Math.max(...stockByCategory.map(c => c.count || 1));
-                  const percentage = Math.min((cat.count / maxCount) * 100, 100);
-                  return (
-                    <div key={idx}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="font-medium text-gray-700">{cat.category}</span>
-                        <span className="text-gray-500">{cat.count} items</span>
-                      </div>
-                      <div className="w-full bg-gray-100 rounded-full h-2.5">
-                        <div 
-                          className="bg-blue-500 h-2.5 rounded-full" 
-                          style={{ width: `${percentage}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        {/* Top Movers Chart */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 lg:col-span-2 flex flex-col">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Top Moving Products <span className="text-sm font-normal text-slate-500 border ml-2 border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">(7 Days)</span></h2>
+          <div className="flex-1 w-full h-[300px]">
+            {top_movers_7d.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={top_movers_7d} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b' }} />
+                  <Tooltip 
+                    cursor={{fill: 'transparent'}}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                    formatter={(val) => [`${val} units`, 'Units Out']}
+                  />
+                  <Bar dataKey="units_out" radius={[0, 4, 4, 0]} barSize={24}>
+                    {top_movers_7d.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index === 0 ? '#3b82f6' : '#93c5fd'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                No category data available.
-              </div>
+              <div className="flex items-center justify-center h-full text-slate-400 text-sm">No sales data for the last 7 days.</div>
             )}
           </div>
         </div>
+
+        {/* Quick Actions */}
+        <div className="flex flex-col gap-4">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Quick Actions</h2>
+          
+          <button 
+            onClick={() => navigate('/reorder')}
+            className="group flex items-center justify-between p-5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5 border border-transparent"
+          >
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-white font-bold text-lg leading-tight group-hover:underline decoration-white/50 underline-offset-4">Run Auto-Reorder</span>
+              <span className="text-blue-100 text-sm font-medium">Draft POs for low stock</span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+               <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white transform group-hover:translate-x-1 transition-transform"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => navigate('/forecast')}
+            className="group flex items-center justify-between p-5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl shadow-sm hover:shadow transition-all border border-slate-200 dark:border-slate-700"
+          >
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-slate-900 dark:text-white font-bold text-lg leading-tight group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">View Demand Forecast</span>
+              <span className="text-slate-500 dark:text-slate-400 text-sm font-medium">LSTM 30-day predictions</span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
+               <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 dark:text-slate-400 group-hover:text-blue-600 transition-colors"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+            </div>
+          </button>
+
+          <button 
+            onClick={handleOpenAI}
+            className="group flex items-center justify-between p-5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/80 rounded-xl shadow-sm hover:shadow transition-all border border-slate-200 dark:border-slate-700"
+          >
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-slate-900 dark:text-white font-bold text-lg leading-tight flex items-center gap-2">
+                Ask AI Assistant <span className="text-amber-500 text-xs tracking-wider uppercase font-bold animate-pulse">✦</span>
+              </span>
+              <span className="text-slate-500 dark:text-slate-400 text-sm font-medium">Data-driven procurement insights</span>
+            </div>
+            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-800">
+               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 transition-colors group-hover:scale-110 duration-200"><rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" /><line x1="8" y1="16" x2="8" y2="16" /><line x1="16" y1="16" x2="16" y2="16" /><path d="M21 16l2-2" /><path d="M1 16l-2-2" /></svg>
+            </div>
+          </button>
+
+        </div>
       </div>
+
     </div>
   );
-};
-
-export default Dashboard;
+}

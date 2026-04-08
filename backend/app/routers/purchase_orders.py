@@ -412,3 +412,169 @@ def create_draft_purchase_order(conn, vendor_id, items):
     except Exception as e:
         conn.rollback()
         raise Exception(f"Failed to create draft purchase order: {e}")
+
+# ── PHASE 5: Auto-Reorder Engine ──
+from datetime import datetime
+from fastapi import Request
+from app.services.reorder_service import check_and_generate_reorders
+
+@router.post("/auto-reorder")
+def trigger_auto_reorder(
+    request: Request,
+    conn=Depends(get_db_connection),
+):
+    current_user = request.state.user
+    if current_user.get("role") not in ("admin", "manager"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires admin or manager role"
+        )
+        
+    try:
+        created_pos = check_and_generate_reorders(conn, preview=False)
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    if not created_pos:
+        return {"pos_created": 0, "message": "All stock levels are healthy"}
+        
+    return {
+        "triggered_at": datetime.utcnow().isoformat(),
+        "pos_created": len(created_pos),
+        "orders": created_pos
+    }
+
+@router.get("/auto-reorder/preview")
+def preview_auto_reorder(
+    request: Request,
+    conn=Depends(get_db_connection),
+):
+    current_user = request.state.user
+    if current_user.get("role") not in ("admin", "manager"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires admin or manager role"
+        )
+        
+    try:
+        created_pos = check_and_generate_reorders(conn, preview=True)
+        conn.rollback() 
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    if not created_pos:
+        return {"pos_created": 0, "preview": True, "message": "All stock levels are healthy"}
+        
+    return {
+        "triggered_at": datetime.utcnow().isoformat(),
+        "preview": True,
+        "pos_created": len(created_pos),
+        "orders": created_pos
+    }
+
+@router.patch("/{po_id}/approve")
+def approve_purchase_order(
+    po_id: int,
+    request: Request,
+    conn=Depends(get_db_connection),
+):
+    current_user = request.state.user
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires admin role"
+        )
+        
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT status FROM purchase_orders WHERE id = %s FOR UPDATE", (po_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Purchase order not found")
+            if row[0] != "draft":
+                raise HTTPException(status_code=400, detail="Purchase order can only be approved from draft status")
+                
+            # Inline comment: Update PO status from draft to sent
+            cursor.execute("UPDATE purchase_orders SET status = 'sent' WHERE id = %s", (po_id,))
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    return fetch_purchase_order(conn, po_id)
+
+@router.patch("/{po_id}/receive")
+def receive_purchase_order(
+    po_id: int,
+    request: Request,
+    conn=Depends(get_db_connection),
+):
+    current_user = request.state.user
+    if current_user.get("role") not in ("admin", "storekeeper"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires admin or storekeeper role"
+        )
+        
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT status FROM purchase_orders WHERE id = %s FOR UPDATE", (po_id,))
+            row = cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Purchase order not found")
+            if row[0] != "sent":
+                raise HTTPException(status_code=400, detail="Purchase order can only be received from sent status")
+                
+            # Inline comment: Update PO status from sent to received
+            cursor.execute("UPDATE purchase_orders SET status = 'received', received_date = NOW() WHERE id = %s", (po_id,))
+            
+            cursor.execute("SELECT product_id, quantity FROM po_line_items WHERE po_id = %s", (po_id,))
+            line_items = cursor.fetchall()
+            
+            for product_id, quantity in line_items:
+                # Inline comment: Add quantity to products current_stock
+                cursor.execute(
+                    "UPDATE products SET current_stock = current_stock + %s WHERE id = %s",
+                    (quantity, product_id)
+                )
+                
+                # Inline comment: Insert IN stock transaction referencing this po_id
+                cursor.execute(
+                    """
+                    INSERT INTO stock_transactions (product_id, type, quantity, reference_po_id, notes)
+                    VALUES (%s, 'IN', %s, %s, %s)
+                    """,
+                    (product_id, quantity, po_id, "Received from auto reorder purchase order #" + str(po_id))
+                )
+        conn.commit()
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    po = fetch_purchase_order(conn, po_id)
+    
+    with conn.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT p.id as product_id, p.current_stock
+            FROM products p
+            JOIN po_line_items li ON li.product_id = p.id
+            WHERE li.po_id = %s
+            """,
+            (po_id,)
+        )
+        stocks = rows_to_dicts(cursor, cursor.fetchall())
+        
+    return {
+        "purchase_order": po,
+        "updated_stocks": stocks
+    }

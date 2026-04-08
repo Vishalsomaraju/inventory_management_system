@@ -4,23 +4,40 @@ import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+
+// Pages
 import AlertsPage from './pages/AlertsPage';
-import DashboardPage from './pages/DashboardPage';
+import Dashboard from './pages/Dashboard';
 import InventoryPage from './pages/InventoryPage';
-import LoginPage from './pages/LoginPage';
+import Login from './pages/Login';
 import PnLDashboard from './pages/PnLDashboard';
 import PurchaseOrdersPage from './pages/PurchaseOrdersPage';
+import SalesAnalysis from './pages/SalesAnalysis';
 import VendorsPage from './pages/VendorsPage';
-import AIAssistant from './pages/AIAssistant';
+import VendorScorecard from './pages/VendorScorecard';
+import AutoReorderPage from './pages/AutoReorderPage';
+import StockHealth from './pages/StockHealth';
+import ForecastPage from './pages/ForecastPage';
 
+// Widgets
+import AIAssistantWidget from './components/AIAssistant';
+
+// The Auth Guard wrapper built for the layout
+function PrivateRoute({ children }) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
 
 function ProtectedLayout() {
   return (
-    <ProtectedRoute>
+    <PrivateRoute>
       <Layout>
         <Outlet />
       </Layout>
-    </ProtectedRoute>
+    </PrivateRoute>
   );
 }
 
@@ -30,19 +47,33 @@ export default function App() {
       <ThemeProvider>
         <AuthProvider>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
+            {/* Unauthenticated route */}
+            <Route path="/login" element={<Login />} />
+            
+            {/* Root redirects to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            {/* Authenticated routes wrapped in shell Layout */}
             <Route element={<ProtectedLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/inventory" element={<InventoryPage />} />
               <Route path="/vendors" element={<VendorsPage />} />
+              <Route path="/vendors/scorecards" element={<VendorScorecard />} />
+              <Route path="/stock-health" element={<StockHealth />} />
+              <Route path="/reorder" element={<AutoReorderPage />} />
               <Route path="/purchase-orders" element={<PurchaseOrdersPage />} />
               <Route path="/alerts" element={<AlertsPage />} />
-              <Route path="/ai" element={<AIAssistant />} />
+              <Route path="/forecast" element={<ForecastPage />} />
               <Route path="/pnl" element={<PnLDashboard />} />
+              <Route path="/sales" element={<SalesAnalysis />} />
             </Route>
+            
+            {/* Catch all */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+
+          {/* AI Assistant - Globally mounted but auto-hides if not authenticated */}
+          <AIAssistantWidget />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

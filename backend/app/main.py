@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.routers import auth
+from app.routers import forecast
 
 
 app = FastAPI(title="Smart Inventory & Procurement System", version="1.0.0")
@@ -19,13 +20,14 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(forecast.router, prefix="/api/forecast", tags=["forecast"])
 
 for module_name, prefix, tags in [
     ("inventory", "/api/inventory", ["inventory"]),
     ("vendors", "/api/vendors", ["vendors"]),
     ("purchase_orders", "/api/purchase-orders", ["purchase_orders"]),
     ("analytics", "/api/analytics", ["analytics"]),
-    ("ai", "/api/ai", ["ai"]),
+    ("ai_assistant", "/api/ai", ["ai"]),
 ]:
     try:
         module = import_module(f"app.routers.{module_name}")
