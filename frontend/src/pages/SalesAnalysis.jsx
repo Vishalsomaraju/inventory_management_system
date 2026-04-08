@@ -47,7 +47,8 @@ const MONTH_OPTIONS = [
   { value: 12, label: 'December' },
 ];
 
-const YEAR_OPTIONS = [2023, 2024, 2025];
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = [currentYear - 2, currentYear - 1, currentYear];
 const DONUT_COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#f97316', '#8b5cf6', '#ef4444', '#14b8a6', '#6366f1'];
 const RUPEE_FORMATTER = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
@@ -201,7 +202,7 @@ function TrendTooltip({ active, payload, label }) {
 
 export default function SalesAnalysis() {
   const now = new Date();
-  const [year, setYear] = useState(2025);
+  const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [salesData, setSalesData] = useState(null);
   const [categoriesData, setCategoriesData] = useState({ categories: [], period: '' });
@@ -565,7 +566,7 @@ export default function SalesAnalysis() {
               </div>
             ) : donutData.length ? (
               <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_220px] lg:items-center">
-                <div className="h-[300px]">
+                <div className="min-h-[300px] h-[40vh] max-h-[400px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -647,7 +648,7 @@ export default function SalesAnalysis() {
                   {trendError}
                 </div>
               ) : trendChartData.length ? (
-                <div className="mt-6 h-[320px]">
+                <div className="mt-6 min-h-[320px] h-[50vh] max-h-[500px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={trendChartData} margin={{ top: 16, right: 16, left: 0, bottom: 8 }}>
                       <CartesianGrid strokeDasharray="4 4" stroke="#cbd5e1" strokeOpacity={0.35} vertical={false} />

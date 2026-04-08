@@ -130,7 +130,7 @@ export default function Dashboard() {
         {/* Top Movers Chart */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm p-6 lg:col-span-2 flex flex-col">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Top Moving Products <span className="text-sm font-normal text-slate-500 border ml-2 border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-full">(7 Days)</span></h2>
-          <div className="flex-1 w-full h-[300px]">
+          <div className="flex-1 w-full min-h-[300px] h-[50vh] max-h-[400px]">
             {top_movers_7d.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={top_movers_7d} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>

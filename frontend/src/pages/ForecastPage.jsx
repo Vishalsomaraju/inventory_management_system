@@ -169,7 +169,7 @@ function ForecastCard({ product }) {
   const urgencyMeta = urgencyStyles[product.urgency] ?? urgencyStyles.normal;
 
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-transform duration-300 hover:-translate-y-1 dark:border-slate-700 dark:bg-slate-800">
+    <article className="flex flex-col h-full rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition-transform duration-300 hover:-translate-y-1 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="truncate text-lg font-semibold text-slate-900 dark:text-white">{product.name}</h3>
@@ -193,14 +193,14 @@ function ForecastCard({ product }) {
         />
       </div>
 
-      <div className="mt-6">
+      <div className="mt-6 flex-1 flex flex-col">
         <div className="mb-3 flex items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
             Monthly Forecast
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{product.category}</p>
         </div>
-        <div className="h-20">
+        <div className="flex-1 min-h-[150px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={product.monthly_forecast} margin={{ top: 6, right: 4, left: -22, bottom: 0 }}>
               <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#cbd5e1" strokeOpacity={0.2} />
@@ -230,7 +230,7 @@ function ForecastCard({ product }) {
         </div>
       </div>
 
-      <div className="mt-5 border-t border-dashed border-slate-200 pt-4 dark:border-slate-700">
+      <div className="mt-5 border-t border-dashed border-slate-200 pt-4 dark:border-slate-700 mt-auto">
         <p className={`text-sm font-semibold ${product.recommended_order_qty > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-600 dark:text-slate-300'}`}>
           Recommended Order: {product.recommended_order_qty} units
         </p>

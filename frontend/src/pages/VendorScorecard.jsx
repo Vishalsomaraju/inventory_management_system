@@ -183,9 +183,9 @@ export default function VendorScorecard() {
                   </div>
                   
                   <div className="flex-1 w-full space-y-4">
-                    <ProgressBar label="On-Time Delivery" value={metrics.on_time_delivery || 0} colorClass={gConfig.bar} />
-                    <ProgressBar label="Price Consistency" value={metrics.price_consistency || 0} colorClass={gConfig.bar} />
-                    <ProgressBar label="Stock Reliability" value={metrics.stock_reliability || 0} colorClass={gConfig.bar} />
+                    <ProgressBar label="On-Time Delivery" value={metrics.on_time_delivery?.score ?? metrics.on_time_delivery ?? 0} colorClass={gConfig.bar} />
+                    <ProgressBar label="Price Consistency" value={metrics.price_consistency?.score ?? metrics.price_consistency ?? 0} colorClass={gConfig.bar} />
+                    <ProgressBar label="Stock Reliability" value={metrics.stockout_contribution?.score ?? metrics.stock_reliability ?? 0} colorClass={gConfig.bar} />
                   </div>
                 </div>
                 
@@ -193,7 +193,7 @@ export default function VendorScorecard() {
                 
                 <div className="flex justify-between items-center mt-auto">
                   <div className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-medium text-gray-900 dark:text-white">{vendor.purchase_orders_count || 0}</span> purchase orders
+                    <span className="font-medium text-gray-900 dark:text-white">{vendor.total_pos ?? vendor.purchase_orders_count ?? 0}</span> purchase orders
                     <span className="mx-2">&middot;</span>
                     <span className="font-medium text-gray-900 dark:text-white">₹{(vendor.total_spend || 0).toLocaleString()}</span> total spend
                   </div>
@@ -252,14 +252,14 @@ export default function VendorScorecard() {
               <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-5 border border-gray-100 dark:border-gray-700 shadow-inner">
                 <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-4 uppercase tracking-wider text-xs">Performance Breakdown</h4>
                 <div className="space-y-4">
-                  <ProgressBar label="On-Time Delivery" value={detailData.metrics?.on_time_delivery || 0} colorClass={getGradeConfig(detailData.grade).bar} />
-                  <ProgressBar label="Price Consistency" value={detailData.metrics?.price_consistency || 0} colorClass={getGradeConfig(detailData.grade).bar} />
-                  <ProgressBar label="Stock Reliability" value={detailData.metrics?.stock_reliability || 0} colorClass={getGradeConfig(detailData.grade).bar} />
-                  {detailData.metrics?.quality_rating && (
-                     <ProgressBar label="Quality Rating" value={detailData.metrics.quality_rating} colorClass={getGradeConfig(detailData.grade).bar} />
-                  )}
-                  {detailData.metrics?.communication && (
-                     <ProgressBar label="Communication" value={detailData.metrics.communication} colorClass={getGradeConfig(detailData.grade).bar} />
+                  <ProgressBar label="On-Time Delivery" value={detailData.metrics?.on_time_delivery?.score ?? detailData.metrics?.on_time_delivery ?? 0} colorClass={getGradeConfig(detailData.grade).bar} />
+                  <ProgressBar label="Price Consistency" value={detailData.metrics?.price_consistency?.score ?? detailData.metrics?.price_consistency ?? 0} colorClass={getGradeConfig(detailData.grade).bar} />
+                  <ProgressBar label="Stock Reliability" value={detailData.metrics?.stockout_contribution?.score ?? detailData.metrics?.stock_reliability ?? 0} colorClass={getGradeConfig(detailData.grade).bar} />
+                  {detailData.metrics?.on_time_delivery?.total_pos !== undefined && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400 pt-1">
+                      {detailData.metrics.on_time_delivery.on_time_pos} / {detailData.metrics.on_time_delivery.total_pos} POs on time
+                      {detailData.avg_delivery_days > 0 && ` · avg ${Number(detailData.avg_delivery_days).toFixed(1)} days`}
+                    </p>
                   )}
                 </div>
                 
@@ -269,9 +269,9 @@ export default function VendorScorecard() {
                       <p className="font-bold text-gray-900 dark:text-white text-lg">₹{(detailData.total_spend || 0).toLocaleString()}</p>
                    </div>
                    <div className="text-right">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Active Orders</p>
-                      <p className="font-bold text-gray-900 dark:text-white text-lg">{detailData.purchase_orders_count || 0}</p>
-                   </div>
+                       <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">Total POs</p>
+                       <p className="font-bold text-gray-900 dark:text-white text-lg">{detailData.total_pos ?? detailData.purchase_orders_count ?? 0}</p>
+                    </div>
                 </div>
               </div>
 

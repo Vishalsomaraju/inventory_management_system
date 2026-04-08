@@ -24,7 +24,8 @@ import StatCard from '../components/StatCard';
 import { SkeletonBlock } from '../components/Skeleton';
 
 
-const YEAR_OPTIONS = [2023, 2024, 2025];
+const currentYear = new Date().getFullYear();
+const YEAR_OPTIONS = [currentYear - 2, currentYear - 1, currentYear];
 const RUPEE_FORMATTER = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 2,
   minimumFractionDigits: 2,
@@ -166,10 +167,10 @@ function EmptyState({ onRetry }) {
 
 
 export default function PnLDashboard() {
-  const [year, setYear] = useState(2025);
+  const [year, setYear] = useState(currentYear);
   const [selectedMonth, setSelectedMonth] = useState(null);
   const [pnlData, setPnlData] = useState(null);
-  const [categoriesData, setCategoriesData] = useState({ categories: [], period: '2025' });
+  const [categoriesData, setCategoriesData] = useState({ categories: [], period: currentYear.toString() });
   const [loading, setLoading] = useState(true);
   const [retryIndex, setRetryIndex] = useState(0);
   const [error, setError] = useState('');
@@ -376,7 +377,7 @@ export default function PnLDashboard() {
           </div>
         </div>
 
-        <div className="mt-6 h-[380px]">
+        <div className="mt-6 min-h-[380px] h-[60vh] max-h-[600px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} onClick={handleBarClick} margin={{ top: 12, right: 8, left: -8, bottom: 12 }}>
               <CartesianGrid strokeDasharray="4 4" stroke="#cbd5e1" strokeOpacity={0.35} vertical={false} />
