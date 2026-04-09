@@ -308,6 +308,7 @@ from app.routers.auth import require_roles
 
 
 TWOPLACES = Decimal("0.01")
+PURCHASE_ORDER_EFFECTIVE_DATE_SQL = "COALESCE(po.received_date, po.expected_delivery, po.created_date)"
 
 
 def round_money(value):
@@ -364,14 +365,13 @@ def get_profit_and_loss(
             cursor.execute(
                 """
                 SELECT
-                    EXTRACT(MONTH FROM po.received_date)::INT AS month,
+                    EXTRACT(MONTH FROM COALESCE(po.received_date, po.expected_delivery, po.created_date))::INT AS month,
                     COALESCE(SUM(li.quantity * li.unit_price), 0) AS cost
                 FROM po_line_items li
                 JOIN purchase_orders po ON po.id = li.po_id
                 WHERE po.status = 'received'
-                  AND po.received_date IS NOT NULL
-                  AND EXTRACT(YEAR FROM po.received_date) = %s
-                GROUP BY EXTRACT(MONTH FROM po.received_date)
+                  AND EXTRACT(YEAR FROM COALESCE(po.received_date, po.expected_delivery, po.created_date)) = %s
+                GROUP BY EXTRACT(MONTH FROM COALESCE(po.received_date, po.expected_delivery, po.created_date))
                 ORDER BY month ASC
                 """,
                 (year,),
@@ -440,14 +440,14 @@ def get_profit_and_loss_by_category(
     try:
         filters = ["EXTRACT(YEAR FROM st.date) = %s"]
         revenue_params = [year]
-        cost_filters = ["EXTRACT(YEAR FROM po.received_date) = %s"]
+        cost_filters = [f"EXTRACT(YEAR FROM {PURCHASE_ORDER_EFFECTIVE_DATE_SQL}) = %s"]
         cost_params = [year]
         period = str(year)
 
         if month is not None:
             filters.append("EXTRACT(MONTH FROM st.date) = %s")
             revenue_params.append(month)
-            cost_filters.append("EXTRACT(MONTH FROM po.received_date) = %s")
+            cost_filters.append(f"EXTRACT(MONTH FROM {PURCHASE_ORDER_EFFECTIVE_DATE_SQL}) = %s")
             cost_params.append(month)
             period = f"{year}-{month:02d}"
 
@@ -486,7 +486,6 @@ def get_profit_and_loss_by_category(
                 JOIN purchase_orders po ON po.id = li.po_id
                 JOIN products p ON p.id = li.product_id
                 WHERE po.status = 'received'
-                  AND po.received_date IS NOT NULL
                   AND {' AND '.join(cost_filters)}
                 GROUP BY COALESCE(NULLIF(TRIM(p.category), ''), 'Uncategorized')
                 ORDER BY cost DESC, category ASC

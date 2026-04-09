@@ -292,7 +292,8 @@ def update_purchase_order_status(
                 cursor.execute(
                     """
                     UPDATE purchase_orders
-                    SET status = 'received'
+                    SET status = 'received',
+                        received_date = COALESCE(received_date, NOW())
                     WHERE id = %s
                     """,
                     (po_id,),

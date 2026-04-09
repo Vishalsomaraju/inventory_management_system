@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bar,
   CartesianGrid,
@@ -56,6 +56,13 @@ function formatCompactRupee(value) {
 
 function getErrorMessage(error, fallback) {
   return error?.message || fallback;
+}
+
+
+function hasMeaningfulPnLData(data) {
+  return (data?.monthly ?? []).some(
+    (item) => Number(item.revenue) > 0 || Number(item.cost) > 0 || Number(item.gross_profit) !== 0,
+  );
 }
 
 
@@ -174,6 +181,8 @@ export default function PnLDashboard() {
   const [loading, setLoading] = useState(true);
   const [retryIndex, setRetryIndex] = useState(0);
   const [error, setError] = useState('');
+  const hasAutoSwitchedYear = useRef(false);
+  const userSelectedYear = useRef(false);
 
   useEffect(() => {
     setSelectedMonth(null);
@@ -187,15 +196,44 @@ export default function PnLDashboard() {
       setError('');
 
       try {
-        const [nextPnlData, nextCategoriesData] = await Promise.all([
-          fetchPnL(year),
-          fetchPnLCategories(year, selectedMonth),
+        let targetYear = year;
+        let [nextPnlData, nextCategoriesData] = await Promise.all([
+          fetchPnL(targetYear),
+          fetchPnLCategories(targetYear, selectedMonth),
         ]);
+
+        if (
+          !selectedMonth &&
+          !userSelectedYear.current &&
+          !hasAutoSwitchedYear.current &&
+          !hasMeaningfulPnLData(nextPnlData)
+        ) {
+          const fallbackYears = [...YEAR_OPTIONS]
+            .sort((left, right) => right - left)
+            .filter((option) => option !== targetYear);
+
+          for (const fallbackYear of fallbackYears) {
+            const fallbackPnlData = await fetchPnL(fallbackYear);
+            if (!hasMeaningfulPnLData(fallbackPnlData)) {
+              continue;
+            }
+
+            const fallbackCategoriesData = await fetchPnLCategories(fallbackYear);
+            targetYear = fallbackYear;
+            nextPnlData = fallbackPnlData;
+            nextCategoriesData = fallbackCategoriesData;
+            hasAutoSwitchedYear.current = true;
+            break;
+          }
+        }
 
         if (!active) {
           return;
         }
 
+        if (targetYear !== year) {
+          setYear(targetYear);
+        }
         setPnlData(nextPnlData);
         setCategoriesData(nextCategoriesData);
       } catch (loadError) {
@@ -225,10 +263,7 @@ export default function PnLDashboard() {
     [pnlData],
   );
 
-  const hasChartData = useMemo(
-    () => chartData.some((item) => item.revenue > 0 || item.cost > 0 || item.gross_profit !== 0),
-    [chartData],
-  );
+  const hasChartData = useMemo(() => hasMeaningfulPnLData(pnlData), [pnlData]);
 
   const bestMonthName = useMemo(() => {
     if (!pnlData?.summary?.best_month?.month) {
@@ -343,7 +378,10 @@ export default function PnLDashboard() {
             <span className="mb-2 block text-sm font-medium text-sky-100">Select year</span>
             <select
               value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
+              onChange={(event) => {
+                userSelectedYear.current = true;
+                setYear(Number(event.target.value));
+              }}
               className="w-full rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-sm font-medium text-white backdrop-blur transition focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
             >
               {YEAR_OPTIONS.map((option) => (
