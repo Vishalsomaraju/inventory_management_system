@@ -257,6 +257,10 @@ from fastapi import Query
 from app.routers.auth import require_roles
 
 
+# NOTE: /scorecards MUST be declared before /{vendor_id} and /{vendor_id}/scorecard
+# so FastAPI does not greedily match the literal string "scorecards" as a vendor_id.
+
+
 def _phase4_clamp(value: float, minimum: float = 0.0, maximum: float = 1.0) -> float:
     return max(minimum, min(maximum, value))
 
@@ -452,24 +456,7 @@ def _phase4_build_vendor_scorecard(conn, vendor_id: int):
     }
 
 
-@router.get("/{vendor_id}/scorecard")
-def get_vendor_scorecard(
-    vendor_id: int,
-    conn=Depends(get_db_connection),
-    current_user=Depends(require_roles("admin", "manager")),
-):
-    del current_user
-    try:
-        return _phase4_build_vendor_scorecard(conn, vendor_id)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch vendor scorecard: {exc}",
-        ) from exc
-
-
+# /scorecards must come FIRST — before any /{vendor_id} routes.
 @router.get("/scorecards")
 def list_vendor_scorecards(
     conn=Depends(get_db_connection),
@@ -502,6 +489,7 @@ def list_vendor_scorecards(
                     "vendor_name": scorecard["vendor_name"],
                     "overall_score": scorecard["overall_score"],
                     "grade": scorecard["grade"],
+                    "metrics": scorecard["metrics"],
                     "total_pos": scorecard["total_pos"],
                     "total_spend": scorecard["total_spend"],
                 }
@@ -515,6 +503,24 @@ def list_vendor_scorecards(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to build vendor scorecards: {exc}",
+        ) from exc
+
+
+@router.get("/{vendor_id}/scorecard")
+def get_vendor_scorecard(
+    vendor_id: int,
+    conn=Depends(get_db_connection),
+    current_user=Depends(require_roles("admin", "manager")),
+):
+    del current_user
+    try:
+        return _phase4_build_vendor_scorecard(conn, vendor_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch vendor scorecard: {exc}",
         ) from exc
 
 

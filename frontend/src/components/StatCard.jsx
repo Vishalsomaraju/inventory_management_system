@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MdTrendingDown, MdTrendingFlat, MdTrendingUp } from 'react-icons/md';
 
 
@@ -18,13 +18,15 @@ const trendConfig = {
 
 
 function resolveValueMeta(value) {
+  // Plain integer / float — round intermediate animation frames to whole numbers
   if (typeof value === 'number') {
     return {
       numericTarget: value,
-      formatter: (nextValue) => nextValue,
+      formatter: (v) => Math.round(v).toLocaleString(),
     };
   }
 
+  // Object with custom formatter: { number: 12345, formatter: formatCurrency }
   if (
     value &&
     typeof value === 'object' &&
@@ -37,6 +39,7 @@ function resolveValueMeta(value) {
     };
   }
 
+  // Fallback — render as-is (string, null, etc.)
   return {
     numericTarget: null,
     formatter: () => value,
@@ -45,7 +48,16 @@ function resolveValueMeta(value) {
 
 
 function AnimatedValue({ value }) {
-  const { numericTarget, formatter } = resolveValueMeta(value);
+  // Memoize so the `formatter` reference is stable across parent re-renders.
+  // Without this, every parent render creates a new function → useEffect fires
+  // again mid-animation → raw float intermediate values appear in the DOM.
+  const memoKey = typeof value === 'object' ? JSON.stringify(value) : value;
+  const { numericTarget, formatter } = useMemo(
+    () => resolveValueMeta(value),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [memoKey],
+  );
+
   const [displayValue, setDisplayValue] = useState(
     numericTarget === null ? value : formatter(numericTarget),
   );

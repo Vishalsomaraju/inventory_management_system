@@ -34,21 +34,24 @@ const AIChat = () => {
     setIsLoading(true);
 
     try {
-      // 2. Fetch context
-      const contextRes = await api.get('/analytics/ai-context').catch(() => ({ data: {} })); // Safely fallback if unimplemented
-      
-      // 3. Post to AI
+      // Build history in the shape the backend expects (exclude the message just added)
+      const historyPayload = messages.map((m) => ({ role: m.role, content: m.content }));
+
       const chatRes = await api.post('/ai/chat', {
         message: text,
-        context: contextRes.data,
-        history: messages // pass history before this interaction
+        history: historyPayload,
       });
 
-      // 4. Add AI response
-      const aiResponseText = chatRes.data?.response || chatRes.data?.content || chatRes.data || "I'm sorry, I encountered an error and couldn't process that request.";
-      setMessages([...newHistory, { role: 'assistant', content: typeof aiResponseText === 'string' ? aiResponseText : JSON.stringify(aiResponseText) }]);
+      // Backend returns { success: true, data: { response: '...', actions_taken: [...] } }
+      const aiResponseText =
+        chatRes.data?.data?.response ||
+        chatRes.data?.response ||
+        "I'm sorry, I encountered an error and couldn't process that request.";
+
+      setMessages([...newHistory, { role: 'assistant', content: aiResponseText }]);
     } catch (error) {
-      setMessages([...newHistory, { role: 'assistant', content: "An error occurred connecting to the AI assistant. " + (error.response?.data?.detail || "") }]);
+      const detail = error.response?.data?.detail || error.response?.data?.error || error.message || '';
+      setMessages([...newHistory, { role: 'assistant', content: `An error occurred connecting to the AI assistant.${detail ? ' ' + detail : ''}` }]);
     } finally {
       setIsLoading(false);
     }

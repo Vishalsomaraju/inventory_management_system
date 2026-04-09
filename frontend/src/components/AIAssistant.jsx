@@ -43,14 +43,14 @@ export default function AIAssistant() {
       }
     }
 
-    // Fetch suggestions
     const fetchSuggestions = async () => {
       try {
-        const res = await api.get('/ai/suggested-questions', {
+        const res = await api.get('/ai/insights', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (res.data && res.data.questions) {
-          setSuggestedQuestions(res.data.questions);
+        if (res.data && res.data.data) {
+          const questions = res.data.data.map(insight => insight.prompt);
+          setSuggestedQuestions(questions.slice(0, 4));
         }
       } catch (err) {
         console.error("Could not fetch suggestions");
@@ -106,16 +106,17 @@ export default function AIAssistant() {
     const serverHistory = sentHistory.slice(0, -1);
 
     try {
-      const response = await api.post('/ai/query', {
+      const response = await api.post('/ai/chat', {
         message: msg,
-        conversation_history: serverHistory
+        history: serverHistory
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      const assistantData = response.data.data || response.data;
       const assistantMsg = { 
         role: 'assistant', 
-        content: response.data.reply 
+        content: assistantData.response || assistantData.reply || 'No response'
       };
       setHistory(prev => [...prev, assistantMsg]);
     } catch (err) {

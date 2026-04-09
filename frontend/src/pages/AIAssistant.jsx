@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../lib/api';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -182,10 +182,9 @@ export default function AIAssistant() {
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Load proactive insights on mount
   useEffect(() => {
-    axios
-      .get('/api/ai/insights')
+    api
+      .get('/ai/insights')
       .then((res) => setInsights(res.data.data || []))
       .catch(() => setInsights([]))
       .finally(() => setInsightsLoading(false));
@@ -212,8 +211,8 @@ export default function AIAssistant() {
       .map((m) => ({ role: m.role, content: m.content }));
 
     try {
-      const res = await axios.post('/api/ai/chat', { message: trimmed, history });
-      const { response, actions_taken } = res.data.data;
+      const res = await api.post('/ai/chat', { message: trimmed, history });
+      const { response, actions_taken } = res.data.data || res.data;
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: response, actions: actions_taken || [] },
@@ -252,7 +251,7 @@ export default function AIAssistant() {
             Inventory Assistant
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Powered by Claude · Live database access
+            Powered by Groq · LLaMA 3.3 · Live database access
           </p>
         </div>
         <div className="ml-auto flex items-center gap-1.5">

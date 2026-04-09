@@ -27,7 +27,7 @@ for module_name, prefix, tags in [
     ("vendors", "/api/vendors", ["vendors"]),
     ("purchase_orders", "/api/purchase-orders", ["purchase_orders"]),
     ("analytics", "/api/analytics", ["analytics"]),
-    ("ai_assistant", "/api/ai", ["ai"]),
+    ("ai", "/api/ai", ["ai"]),
 ]:
     try:
         module = import_module(f"app.routers.{module_name}")
